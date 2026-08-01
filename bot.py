@@ -13,6 +13,12 @@ async def on_ready():
     print(f"Logged in as {bot.user}")
     print("Bot is online and ready.")
 
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} slash commands.")
+    except Exception as e:
+        print(f"Error syncing commands: {e}")
+
 # Example command
 @bot.command()
 async def ping(ctx):
