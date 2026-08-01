@@ -1,12 +1,21 @@
 import discord
 from discord.ext import commands
 import os
+import asyncio
 
-# Load token from Railway environment variable
+# --------------------------------------------------
+# BOT SETUP
+# --------------------------------------------------
+
 TOKEN = os.getenv("TOKEN")
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+
+# --------------------------------------------------
+# READY EVENT + SLASH COMMAND SYNC
+# --------------------------------------------------
 
 @bot.event
 async def on_ready():
@@ -19,14 +28,38 @@ async def on_ready():
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
-# Example command
+
+# --------------------------------------------------
+# EXAMPLE PREFIX COMMAND
+# --------------------------------------------------
+
 @bot.command()
 async def ping(ctx):
     await ctx.send("Pong!")
 
-# Load cogs if you use them
-for filename in os.listdir("./cogs"):
-    if filename.endswith(".py"):
-        bot.load_extension(f"cogs.{filename[:-3]}")
 
-bot.run(TOKEN)
+# --------------------------------------------------
+# ASYNC COG LOADER (REQUIRED FOR DISCORD.PY 2.x)
+# --------------------------------------------------
+
+async def load_cogs():
+    for filename in os.listdir("./cogs"):
+        if filename.endswith(".py"):
+            try:
+                await bot.load_extension(f"cogs.{filename[:-3]}")
+                print(f"Loaded cog: {filename}")
+            except Exception as e:
+                print(f"Failed to load {filename}: {e}")
+
+
+# --------------------------------------------------
+# MAIN STARTUP (REQUIRED FOR RAILWAY)
+# --------------------------------------------------
+
+async def main():
+    async with bot:
+        await load_cogs()
+        await bot.start(TOKEN)
+
+
+asyncio.run(main())
