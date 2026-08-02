@@ -1,6 +1,5 @@
 import os
 import asyncpg
-from database.database import db
 
 
 class Database:
