@@ -20,12 +20,12 @@ class CloseTicketView(discord.ui.View):
     @discord.ui.button(
         label="🔒 Close Ticket",
         style=discord.ButtonStyle.danger,
-        custom_id="close_ticket"
+        custom_id="close_ticket",
     )
     async def close_ticket(
         self,
         interaction: discord.Interaction,
-        button: discord.ui.Button
+        button: discord.ui.Button,
     ):
 
         staff = interaction.guild.get_role(STAFF_ROLE_ID)
@@ -33,19 +33,19 @@ class CloseTicketView(discord.ui.View):
         if staff not in interaction.user.roles:
             return await interaction.response.send_message(
                 "❌ Only staff can close tickets.",
-                ephemeral=True
+                ephemeral=True,
             )
 
         await interaction.response.send_message(
             "🗑 Closing ticket...",
-            ephemeral=True
+            ephemeral=True,
         )
 
         await interaction.channel.delete()
 
 
 # --------------------------------------------------
-# BASE TICKET VIEW
+# BASE VIEW
 # --------------------------------------------------
 
 class BaseTicketView(discord.ui.View):
@@ -53,12 +53,11 @@ class BaseTicketView(discord.ui.View):
     ticket_type = ""
     button_label = ""
     button_emoji = ""
-    custom_id = ""
 
     def __init__(self):
         super().__init__(timeout=None)
 
-    async def create_ticket(self, interaction):
+    async def create_ticket(self, interaction: discord.Interaction):
 
         guild = interaction.guild
         category = guild.get_channel(TICKET_CATEGORY_ID)
@@ -66,42 +65,39 @@ class BaseTicketView(discord.ui.View):
         if category is None:
             return await interaction.response.send_message(
                 "❌ Ticket category not found.",
-                ephemeral=True
+                ephemeral=True,
             )
 
-        # Prevent duplicate tickets
-        existing = discord.utils.get(
-            category.channels,
-            topic=f"{self.ticket_type}:{interaction.user.id}"
-        )
-
-        if existing:
+        if await has_open_ticket(
+            interaction.user.id,
+            self.ticket_type,
+        ):
             return await interaction.response.send_message(
-                f"You already have an open {self.ticket_type} ticket:\n{existing.mention}",
-                ephemeral=True
+                f"You already have an open {self.ticket_type} ticket.",
+                ephemeral=True,
             )
 
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             interaction.user: discord.PermissionOverwrite(
                 read_messages=True,
-                send_messages=True
+                send_messages=True,
             ),
             guild.get_role(STAFF_ROLE_ID): discord.PermissionOverwrite(
                 read_messages=True,
-                send_messages=True
-            )
+                send_messages=True,
+            ),
         }
 
         channel = await category.create_text_channel(
             name=f"{self.ticket_type}-{interaction.user.name}",
             topic=f"{self.ticket_type}:{interaction.user.id}",
-            overwrites=overwrites
+            overwrites=overwrites,
         )
 
         embed = discord.Embed(
             title=f"{self.button_emoji} {self.button_label}",
-            colour=discord.Colour.blurple()
+            colour=discord.Colour.blurple(),
         )
 
         if self.ticket_type == "verification":
@@ -134,12 +130,18 @@ class BaseTicketView(discord.ui.View):
         await channel.send(
             interaction.user.mention,
             embed=embed,
-            view=CloseTicketView()
+            view=CloseTicketView(),
+        )
+
+        await create_ticket(
+            channel.id,
+            interaction.user.id,
+            self.ticket_type,
         )
 
         await interaction.response.send_message(
             f"✅ Ticket created: {channel.mention}",
-            ephemeral=True
+            ephemeral=True,
         )
 
 
@@ -157,9 +159,9 @@ class VerificationTicketView(BaseTicketView):
         label="Open Verification Ticket",
         style=discord.ButtonStyle.success,
         emoji="🪪",
-        custom_id="ticket_verification"
+        custom_id="ticket_verification",
     )
-    async def button(self, interaction, button):
+    async def button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.create_ticket(interaction)
 
 
@@ -177,9 +179,9 @@ class ReportsTicketView(BaseTicketView):
         label="Open Report Ticket",
         style=discord.ButtonStyle.danger,
         emoji="⚠️",
-        custom_id="ticket_reports"
+        custom_id="ticket_reports",
     )
-    async def button(self, interaction, button):
+    async def button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.create_ticket(interaction)
 
 
@@ -197,9 +199,9 @@ class ApplicationsTicketView(BaseTicketView):
         label="Apply For Staff",
         style=discord.ButtonStyle.primary,
         emoji="📝",
-        custom_id="ticket_applications"
+        custom_id="ticket_applications",
     )
-    async def button(self, interaction, button):
+    async def button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.create_ticket(interaction)
 
 
@@ -217,7 +219,7 @@ class ContactTicketView(BaseTicketView):
         label="Contact Staff",
         style=discord.ButtonStyle.secondary,
         emoji="💌",
-        custom_id="ticket_contact"
+        custom_id="ticket_contact",
     )
-    async def button(self, interaction, button):
+    async def button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.create_ticket(interaction)
