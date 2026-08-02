@@ -121,7 +121,7 @@ class Relationships(commands.Cog):
     @app_commands.command(name="tree", description="Generate your pastel family tree.")
     async def tree(self, interaction: discord.Interaction, user: discord.Member = None):
 
-        # Prevent Discord timeout
+        # Prevent Discord timeout — MUST be first
         await interaction.response.defer()
 
         target = user or interaction.user
