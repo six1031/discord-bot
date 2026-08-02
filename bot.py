@@ -19,6 +19,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
+    bot.add_view(CloseTicketButton())  # persistent button support
     print(f"Logged in as {bot.user}")
     print("Bot is online and ready.")
 
