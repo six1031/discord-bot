@@ -71,12 +71,12 @@ class Games(commands.Cog):
                 f"Counting game is now **{'enabled' if toggle else 'disabled'}**.",
                 ephemeral=True,
             )
-    return
+            return
 
-await interaction.response.send_message(
-    "❌ You must specify at least one option.",
-    ephemeral=True,
-)
+        await interaction.response.send_message(
+            "❌ You must specify at least one option.",
+            ephemeral=True,
+        )
 
     # --------------------------------------------------
     # WORDCHAIN COMMAND
