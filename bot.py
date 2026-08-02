@@ -79,3 +79,5 @@ async def main():
         await bot.start(TOKEN)
 
     await db.close()
+    
+asyncio.run(main())
