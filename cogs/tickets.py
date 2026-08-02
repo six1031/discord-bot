@@ -3,6 +3,8 @@ from discord.ext import commands
 from discord import app_commands
 
 from utils.ticket_storage import load_panels, save_panels
+panels = load_panels()
+
 
 # --------------------------------------------------
 # CONFIG
