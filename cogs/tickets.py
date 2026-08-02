@@ -119,7 +119,7 @@ class Tickets(commands.Cog):
 
         panel = panel_type.value
 
-                embed = discord.Embed(
+        embed = discord.Embed(
             title=f"🎫 {panel.title()} Tickets",
             description="Click the button below to open a ticket.",
             colour=discord.Colour.blurple(),
