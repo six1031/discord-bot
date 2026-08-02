@@ -19,13 +19,28 @@ FONT_SIZE = 28
 
 
 def rounded_rect(draw, xy, radius, outline, fill, width=2):
-    draw.rounded_rectangle(xy, radius=radius, outline=outline, fill=fill, width=width)
+    draw.rounded_rectangle(
+        xy,
+        radius=radius,
+        outline=outline,
+        fill=fill,
+        width=width
+    )
 
 
 def draw_centered_text(draw, xy, text, font, fill):
     x1, y1, x2, y2 = xy
-    tw, th = draw.textsize(text, font=font)
-    draw.text(((x1 + x2 - tw) / 2, (y1 + y2 - th) / 2), text, font=font, fill=fill)
+
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+
+    draw.text(
+        ((x1 + x2 - tw) / 2, (y1 + y2 - th) / 2),
+        text,
+        font=font,
+        fill=fill,
+    )
 
 
 class Node:
@@ -42,17 +57,39 @@ class Node:
         return (x1, y1, x2, y2)
 
     def draw(self, draw, font):
-        rounded_rect(draw, self.rect, NODE_RADIUS, outline=GOLD, fill=NODE_BG, width=LINE_WIDTH)
-        draw_centered_text(draw, self.rect, self.label, font, TEXT_COLOR)
+        rounded_rect(
+            draw,
+            self.rect,
+            NODE_RADIUS,
+            outline=GOLD,
+            fill=NODE_BG,
+            width=LINE_WIDTH,
+        )
+        draw_centered_text(
+            draw,
+            self.rect,
+            self.label,
+            font,
+            TEXT_COLOR,
+        )
 
 
-def generate_tree_image(user_name, spouse_name, caregivers, littles, middles, siblings, handler, pets):
+def generate_tree_image(
+    user_name,
+    spouse_name,
+    caregivers,
+    littles,
+    middles,
+    siblings,
+    handler,
+    pets,
+):
     img = Image.new("RGB", (WIDTH, HEIGHT), BG_COLOR)
     draw = ImageDraw.Draw(img)
 
     try:
         font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
-    except:
+    except Exception:
         font = ImageFont.load_default()
 
     nodes = []
@@ -62,43 +99,83 @@ def generate_tree_image(user_name, spouse_name, caregivers, littles, middles, si
 
     # SPOUSE
     if spouse_name:
-        nodes.append(Node(f"Spouse: {spouse_name}", (WIDTH // 2 + 380, HEIGHT // 2)))
+        nodes.append(
+            Node(
+                f"Spouse: {spouse_name}",
+                (WIDTH // 2 + 380, HEIGHT // 2),
+            )
+        )
 
     # CAREGIVERS
     cy = HEIGHT // 2 - 220
     offset = 220
     for i, name in enumerate(caregivers):
-        nodes.append(Node(f"Caregiver: {name}", (WIDTH // 2 + (i * offset) - offset, cy)))
+        nodes.append(
+            Node(
+                f"Caregiver: {name}",
+                (WIDTH // 2 + (i * offset) - offset, cy),
+            )
+        )
 
     # SIBLINGS
     base_x = WIDTH // 2 - 380
     base_y = HEIGHT // 2 - 40
     spacing = 110
-    for i, name in enumerate(siblings):
-        nodes.append(Node(f"Sibling: {name}", (base_x, base_y + (i * spacing))))
 
-    # HANDLER + PETS
+    for i, name in enumerate(siblings):
+        nodes.append(
+            Node(
+                f"Sibling: {name}",
+                (base_x, base_y + (i * spacing)),
+            )
+        )
+
+    # HANDLER
     if handler:
         hy = base_y + spacing * len(siblings)
-        nodes.append(Node(f"Handler: {handler}", (base_x, hy)))
+
+        nodes.append(
+            Node(
+                f"Handler: {handler}",
+                (base_x, hy),
+            )
+        )
+
         for i, name in enumerate(pets):
-            nodes.append(Node(f"Pet: {name}", (base_x, hy + ((i + 1) * spacing))))
+            nodes.append(
+                Node(
+                    f"Pet: {name}",
+                    (base_x, hy + ((i + 1) * spacing)),
+                )
+            )
 
     # LITTLES
-    mid_y_top = HEIGHT // 2 + 150
+    little_y = HEIGHT // 2 + 150
+
     for i, name in enumerate(littles):
-        nodes.append(Node(f"Little: {name}", (WIDTH // 2 + (i * 200) - 150, mid_y_top)))
+        nodes.append(
+            Node(
+                f"Little: {name}",
+                (WIDTH // 2 + (i * 200) - 150, little_y),
+            )
+        )
 
     # MIDDLES
-    mid_y_bottom = mid_y_top + 120
+    middle_y = little_y + 120
+
     for i, name in enumerate(middles):
-        nodes.append(Node(f"Middle: {name}", (WIDTH // 2 + (i * 200) - 150, mid_y_bottom)))
+        nodes.append(
+            Node(
+                f"Middle: {name}",
+                (WIDTH // 2 + (i * 200) - 150, middle_y),
+            )
+        )
 
-    # DRAW NODES
-    for n in nodes:
-        n.draw(draw, font)
+    # Draw every node
+    for node in nodes:
+        node.draw(draw, font)
 
-    # RETURN JPEG BYTES (THIS IS WHAT YOUR COG NEEDS)
+    # Return image as bytes
     buffer = BytesIO()
     img.save(buffer, format="JPEG")
     buffer.seek(0)
