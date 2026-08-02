@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 
 from utils.tree_image import generate_tree_image
-from database import db  # make sure this matches your actual import path
+from database.database import db
 
 
 # --------------------------------------------------
