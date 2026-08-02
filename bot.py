@@ -3,6 +3,8 @@ from discord.ext import commands
 import os
 import asyncio
 
+from database.database import db
+
 # --------------------------------------------------
 # BOT SETUP
 # --------------------------------------------------
@@ -12,23 +14,20 @@ TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-
 # --------------------------------------------------
-# READY EVENT + SLASH COMMAND SYNC
+# READY EVENT
 # --------------------------------------------------
 
 @bot.event
 async def on_ready():
-    bot.add_view(CloseTicketButton())  # persistent button support
     print(f"Logged in as {bot.user}")
     print("Bot is online and ready.")
 
     try:
         synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} slash commands.")
+        print(f"✅ Synced {len(synced)} slash commands.")
     except Exception as e:
-        print(f"Error syncing commands: {e}")
-
+        print(f"❌ Error syncing commands: {e}")
 
 # --------------------------------------------------
 # EXAMPLE PREFIX COMMAND
@@ -38,9 +37,8 @@ async def on_ready():
 async def ping(ctx):
     await ctx.send("Pong!")
 
-
 # --------------------------------------------------
-# ASYNC COG LOADER (REQUIRED FOR DISCORD.PY 2.x)
+# LOAD COGS
 # --------------------------------------------------
 
 async def load_cogs():
@@ -48,19 +46,24 @@ async def load_cogs():
         if filename.endswith(".py"):
             try:
                 await bot.load_extension(f"cogs.{filename[:-3]}")
-                print(f"Loaded cog: {filename}")
+                print(f"✅ Loaded cog: {filename}")
             except Exception as e:
-                print(f"Failed to load {filename}: {e}")
-
+                print(f"❌ Failed to load {filename}: {e}")
 
 # --------------------------------------------------
-# MAIN STARTUP (REQUIRED FOR RAILWAY)
+# STARTUP
 # --------------------------------------------------
 
 async def main():
+
+    await db.connect()
+
     async with bot:
         await load_cogs()
         await bot.start(TOKEN)
 
+    await db.close()
 
-asyncio.run(main())
+
+if __name__ == "__main__":
+    asyncio.run(main())
