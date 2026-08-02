@@ -4,9 +4,9 @@ from io import BytesIO
 WIDTH = 1600
 HEIGHT = 1200
 
-BG_COLOR = (10, 10, 10)
-GOLD = (212, 175, 55)
-NODE_BG = (20, 20, 20)
+BG_COLOR = (10, 10, 10)          # black background
+GOLD = (212, 175, 55)            # gold accents
+NODE_BG = (20, 20, 20)           # dark node background
 TEXT_COLOR = GOLD
 
 NODE_WIDTH = 260
@@ -55,49 +55,50 @@ def generate_tree_image(user_name, spouse_name, caregivers, littles, middles, si
     except:
         font = ImageFont.load_default()
 
-    # --- CENTER NODE ---
     nodes = []
+
+    # YOU
     nodes.append(Node(f"YOU: {user_name}", (WIDTH // 2, HEIGHT // 2)))
 
-    # --- SPOUSE ---
+    # SPOUSE
     if spouse_name:
         nodes.append(Node(f"Spouse: {spouse_name}", (WIDTH // 2 + 380, HEIGHT // 2)))
 
-    # --- CAREGIVERS ---
+    # CAREGIVERS
     cy = HEIGHT // 2 - 220
     offset = 220
     for i, name in enumerate(caregivers):
         nodes.append(Node(f"Caregiver: {name}", (WIDTH // 2 + (i * offset) - offset, cy)))
 
-    # --- SIBLINGS ---
+    # SIBLINGS
     base_x = WIDTH // 2 - 380
     base_y = HEIGHT // 2 - 40
     spacing = 110
     for i, name in enumerate(siblings):
         nodes.append(Node(f"Sibling: {name}", (base_x, base_y + (i * spacing))))
 
-    # --- HANDLER + PETS ---
+    # HANDLER + PETS
     if handler:
         hy = base_y + spacing * len(siblings)
         nodes.append(Node(f"Handler: {handler}", (base_x, hy)))
         for i, name in enumerate(pets):
             nodes.append(Node(f"Pet: {name}", (base_x, hy + ((i + 1) * spacing))))
 
-    # --- LITTLES ---
+    # LITTLES
     mid_y_top = HEIGHT // 2 + 150
     for i, name in enumerate(littles):
         nodes.append(Node(f"Little: {name}", (WIDTH // 2 + (i * 200) - 150, mid_y_top)))
 
-    # --- MIDDLES ---
+    # MIDDLES
     mid_y_bottom = mid_y_top + 120
     for i, name in enumerate(middles):
         nodes.append(Node(f"Middle: {name}", (WIDTH // 2 + (i * 200) - 150, mid_y_bottom)))
 
-    # Draw nodes
+    # DRAW NODES
     for n in nodes:
         n.draw(draw, font)
 
-    # Return JPEG bytes
+    # RETURN JPEG BYTES (THIS IS WHAT YOUR COG NEEDS)
     buffer = BytesIO()
     img.save(buffer, format="JPEG")
     buffer.seek(0)
