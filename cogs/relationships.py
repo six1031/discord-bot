@@ -11,8 +11,105 @@ from database.relationships import (
     create_marriage,
     delete_marriage,
     get_spouse,
-    is_married
+    is_married,
 )
+
+
+# --------------------------------------------------
+# MARRIAGE PROPOSAL VIEW
+# --------------------------------------------------
+
+class MarriageProposalView(discord.ui.View):
+    def __init__(self, proposer_id: int, partner_id: int):
+        super().__init__(timeout=300)  # 5 minutes
+        self.proposer_id = proposer_id
+        self.partner_id = partner_id
+        self.message: discord.Message | None = None
+
+    async def _disable(self, interaction: discord.Interaction, new_content: str | None = None):
+        for child in self.children:
+            child.disabled = True
+        if new_content is not None:
+            await interaction.message.edit(content=new_content, view=self)
+        else:
+            await interaction.message.edit(view=self)
+
+    @discord.ui.button(
+        label="✅ Accept",
+        style=discord.ButtonStyle.success,
+        custom_id="marriage_accept",
+    )
+    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        # Only the partner can accept
+        if interaction.user.id != self.partner_id:
+            return await interaction.response.send_message(
+                "❌ Only the proposed partner can respond to this.",
+                ephemeral=True,
+            )
+
+        # Check marriage status
+        if await is_married(self.proposer_id) or await is_married(self.partner_id):
+            await interaction.response.send_message(
+                "❌ One of you is already married.",
+                ephemeral=True,
+            )
+            return await self._disable(interaction)
+
+        # Create marriage + spouse relationships
+        await create_marriage(self.proposer_id, self.partner_id)
+        await add_relationship(self.proposer_id, self.partner_id, "spouse")
+        await add_relationship(self.partner_id, self.proposer_id, "spouse")
+
+        proposer = interaction.guild.get_member(self.proposer_id)
+        partner = interaction.guild.get_member(self.partner_id)
+
+        await interaction.response.send_message(
+            f"💍 You accepted! You are now married to {proposer.mention}.",
+            ephemeral=True,
+        )
+
+        await self._disable(
+            interaction,
+            new_content=f"💍 {proposer.mention} is now married to {partner.mention}!",
+        )
+
+    @discord.ui.button(
+        label="❌ Decline",
+        style=discord.ButtonStyle.danger,
+        custom_id="marriage_decline",
+    )
+    async def decline(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        # Only the partner can decline
+        if interaction.user.id != self.partner_id:
+            return await interaction.response.send_message(
+                "❌ Only the proposed partner can respond to this.",
+                ephemeral=True,
+            )
+
+        proposer = interaction.guild.get_member(self.proposer_id)
+        partner = interaction.guild.get_member(self.partner_id)
+
+        await interaction.response.send_message(
+            "💔 You declined the proposal.",
+            ephemeral=True,
+        )
+
+        await self._disable(
+            interaction,
+            new_content=f"💔 {partner.mention} declined {proposer.mention}'s marriage proposal.",
+        )
+
+    async def on_timeout(self):
+        if self.message:
+            try:
+                await self.message.edit(
+                    content="⏰ This marriage proposal has expired.",
+                    view=None,
+                )
+            except discord.HTTPException:
+                pass
 
 
 # --------------------------------------------------
@@ -54,20 +151,11 @@ class Relationships(commands.Cog):
         # For spouse, use /marry instead
         if rtype == "spouse":
             return await interaction.response.send_message(
-                "❌ Use `/marry` to add a spouse.",
+                "❌ Use `/marry` to add a spouse via proposal.",
                 ephemeral=True
             )
 
-        async with db.pool.acquire() as conn:
-            await conn.execute(
-                """
-                INSERT INTO relationships (user_id, partner_id, relationship_type)
-                VALUES ($1, $2, $3)
-                """,
-                interaction.user.id,
-                partner.id,
-                rtype,
-            )
+        await add_relationship(interaction.user.id, partner.id, rtype)
 
         await interaction.response.send_message(
             f"✅ Added **{rtype}**: {partner.display_name}",
@@ -88,17 +176,8 @@ class Relationships(commands.Cog):
         partner: discord.Member
     ):
 
-        async with db.pool.acquire() as conn:
-            result = await conn.execute(
-                """
-                DELETE FROM relationships
-                WHERE user_id = $1 AND partner_id = $2
-                """,
-                interaction.user.id,
-                partner.id,
-            )
+        result = await remove_relationship(interaction.user.id, partner.id)
 
-        # result is like "DELETE 0" or "DELETE 1"
         if result == "DELETE 0":
             return await interaction.response.send_message(
                 "❌ That user was not in your tree.",
@@ -111,12 +190,12 @@ class Relationships(commands.Cog):
         )
 
     # --------------------------------------------------
-    # MARRY COMMAND (SIMPLE MUTUAL, ONE SPOUSE EACH)
+    # MARRY COMMAND (WITH PROPOSAL)
     # --------------------------------------------------
 
     @app_commands.command(
         name="marry",
-        description="Marry another user (one spouse each)."
+        description="Propose marriage to another user."
     )
     @app_commands.describe(
         partner="The user you want to marry"
@@ -139,50 +218,32 @@ class Relationships(commands.Cog):
                 ephemeral=True
             )
 
-        async with db.pool.acquire() as conn:
-            # Check if either user is already married
-            existing = await conn.fetchrow(
-                """
-                SELECT *
-                FROM marriages
-                WHERE (user1_id = $1 OR user2_id = $1)
-                   OR (user1_id = $2 OR user2_id = $2)
-                """,
-                interaction.user.id,
-                partner.id,
+        # Check if either is already married
+        if await is_married(interaction.user.id):
+            return await interaction.response.send_message(
+                "❌ You are already married.",
+                ephemeral=True
             )
 
-            if existing:
-                return await interaction.response.send_message(
-                    "❌ One of you is already married.",
-                    ephemeral=True
-                )
-
-            # Create marriage row
-            await conn.execute(
-                """
-                INSERT INTO marriages (user1_id, user2_id)
-                VALUES ($1, $2)
-                """,
-                interaction.user.id,
-                partner.id,
+        if await is_married(partner.id):
+            return await interaction.response.send_message(
+                "❌ That user is already married.",
+                ephemeral=True
             )
 
-            # Add spouse relationship for both users
-            await conn.execute(
-                """
-                INSERT INTO relationships (user_id, partner_id, relationship_type)
-                VALUES ($1, $2, 'spouse'),
-                       ($2, $1, 'spouse')
-                """,
-                interaction.user.id,
-                partner.id,
-            )
+        view = MarriageProposalView(
+            proposer_id=interaction.user.id,
+            partner_id=partner.id,
+        )
 
         await interaction.response.send_message(
-            f"💍 {interaction.user.mention} is now married to {partner.mention}!",
-            ephemeral=False
+            f"💍 {interaction.user.mention} wants to marry {partner.mention}!\n"
+            f"{partner.mention}, do you accept?",
+            view=view,
         )
+
+        # Store message on the view for timeout handling
+        view.message = await interaction.original_response()
 
     # --------------------------------------------------
     # DIVORCE COMMAND
@@ -197,47 +258,25 @@ class Relationships(commands.Cog):
         interaction: discord.Interaction
     ):
 
-        async with db.pool.acquire() as conn:
-            marriage = await conn.fetchrow(
-                """
-                SELECT *
-                FROM marriages
-                WHERE user1_id = $1 OR user2_id = $1
-                """,
-                interaction.user.id,
+        marriage = await get_marriage(interaction.user.id)
+
+        if not marriage:
+            return await interaction.response.send_message(
+                "❌ You are not currently married.",
+                ephemeral=True
             )
 
-            if not marriage:
-                return await interaction.response.send_message(
-                    "❌ You are not currently married.",
-                    ephemeral=True
-                )
+        user1 = marriage["user1_id"]
+        user2 = marriage["user2_id"]
 
-            user1 = marriage["user1_id"]
-            user2 = marriage["user2_id"]
+        await delete_marriage(marriage["id"])
 
-            # Delete marriage
-            await conn.execute(
-                """
-                DELETE FROM marriages
-                WHERE id = $1
-                """,
-                marriage["id"],
-            )
+        # Remove spouse relationships for both
+        await remove_relationship(user1, user2)
+        await remove_relationship(user2, user1)
 
-            # Delete spouse relationships for both
-            await conn.execute(
-                """
-                DELETE FROM relationships
-                WHERE (user_id = $1 AND partner_id = $2 AND relationship_type = 'spouse')
-                   OR (user_id = $2 AND partner_id = $1 AND relationship_type = 'spouse')
-                """,
-                user1,
-                user2,
-            )
-
-        # Try to resolve partner for message
-        partner = interaction.guild.get_member(user2) if user1 == interaction.user.id else interaction.guild.get_member(user1)
+        partner_id = user2 if user1 == interaction.user.id else user1
+        partner = interaction.guild.get_member(partner_id)
 
         if partner:
             msg = f"💔 {interaction.user.mention} is now divorced from {partner.mention}."
@@ -267,15 +306,7 @@ class Relationships(commands.Cog):
 
         target = user or interaction.user
 
-        async with db.pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                SELECT partner_id, relationship_type
-                FROM relationships
-                WHERE user_id = $1
-                """,
-                target.id,
-            )
+        rows = await get_relationships(target.id)
 
         spouse = None
         caregivers = []
