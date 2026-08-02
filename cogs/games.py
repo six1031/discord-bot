@@ -7,13 +7,8 @@ from database.games import (
     save_counting,
     save_wordchain,
     save_settings,
-    save_game_state,
 )
 
-
-# --------------------------------------------------
-# MAIN COG
-# --------------------------------------------------
 
 class Games(commands.Cog):
     def __init__(self, bot):
@@ -216,7 +211,6 @@ class Games(commands.Cog):
             and state["wordchain_channel"]
             and message.channel.id == state["wordchain_channel"]
         ):
-            # Allow multi-word messages: use the LAST word
             words = message.content.lower().strip().split()
             if not words:
                 return
@@ -293,10 +287,6 @@ class Games(commands.Cog):
             )
             await message.add_reaction("🟩")
 
-
-# --------------------------------------------------
-# SETUP
-# --------------------------------------------------
 
 async def setup(bot):
     await bot.add_cog(Games(bot))
