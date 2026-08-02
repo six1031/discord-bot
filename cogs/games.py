@@ -32,11 +32,12 @@ class Games(commands.Cog):
         toggle="Enable or disable counting"
     )
     async def counting(
-        self,
-        interaction: discord.Interaction,
-        setchannel: discord.TextChannel | None,
-        toggle: bool | None
-    ):
+    self,
+    interaction: discord.Interaction,
+    setchannel: discord.TextChannel | None,
+    toggle: bool | None
+):
+    try:
         state = await self.get_data(interaction.guild)
 
         if setchannel is not None:
@@ -77,6 +78,9 @@ class Games(commands.Cog):
             "❌ You must specify at least one option.",
             ephemeral=True,
         )
+    except Exception as e:
+        print(f"COUNTING ERROR: {e}")
+        raise
 
     # --------------------------------------------------
     # WORDCHAIN COMMAND
