@@ -29,13 +29,16 @@ class CloseTicketButton(discord.ui.View):
     )
     async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
 
-        if not interaction.user.guild_permissions.manage_channels:
+        staff_role = interaction.guild.get_role(STAFF_ROLE_ID)
+
+        if staff_role not in interaction.user.roles:
             return await interaction.response.send_message(
                 "❌ Only staff can close tickets.",
                 ephemeral=True
             )
 
         await interaction.channel.delete()
+
 
 
 # --------------------------------------------------
