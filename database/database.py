@@ -72,6 +72,26 @@ class Database:
             );
 
             """)
+            await conn.execute("""
+
+            CREATE TABLE IF NOT EXISTS game_state (
+
+                guild_id BIGINT PRIMARY KEY,
+
+                counting_channel BIGINT,
+                counting_enabled BOOLEAN DEFAULT TRUE,
+                current_count INTEGER DEFAULT 0,
+                last_counter BIGINT,
+
+                wordchain_channel BIGINT,
+                wordchain_enabled BOOLEAN DEFAULT TRUE,
+                last_word TEXT DEFAULT '',
+                used_words TEXT[] DEFAULT '{}',
+                word_last_counter BIGINT
+
+            );
+
+            """)
 
             await conn.execute("""
 
