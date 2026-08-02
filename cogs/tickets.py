@@ -39,30 +39,20 @@ class CloseTicketButton(discord.ui.View):
 
 
 # --------------------------------------------------
-# TICKET TYPE BUTTONS (Report / Contact / Application / Verification)
+# CREATE TICKET BUTTON (same as your original)
 # --------------------------------------------------
 
-class TicketTypeView(discord.ui.View):
-    def __init__(self):
+class CreateTicketButton(discord.ui.View):
+    def __init__(self, panel_type: str):
         super().__init__(timeout=None)
+        self.panel_type = panel_type
 
-    @discord.ui.button(label="⚠ Report", style=discord.ButtonStyle.danger, emoji="⚠")
-    async def report(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.create_ticket(interaction, "reports")
-
-    @discord.ui.button(label="💌 Contact Staff", style=discord.ButtonStyle.primary, emoji="💌")
-    async def contact(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.create_ticket(interaction, "contact")
-
-    @discord.ui.button(label="📝 Applications", style=discord.ButtonStyle.success, emoji="📝")
-    async def applications(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.create_ticket(interaction, "applications")
-
-    @discord.ui.button(label="🪪 Verification", style=discord.ButtonStyle.secondary, emoji="🪪")
-    async def verification(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.create_ticket(interaction, "verification")
-
-    async def create_ticket(self, interaction, ticket_type):
+    @discord.ui.button(
+        label="🎫 Open Ticket",
+        style=discord.ButtonStyle.green,
+        custom_id="open_ticket_button"
+    )
+    async def open_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         category = interaction.guild.get_channel(TICKET_CATEGORY_ID)
 
@@ -72,8 +62,9 @@ class TicketTypeView(discord.ui.View):
                 ephemeral=True
             )
 
-        channel = await category.create_text_channel(
-            name=f"{ticket_type}-{interaction.user.name}",
+        ticket_channel = await category.create_text_channel(
+            name=f"{self.panel_type}-ticket-{interaction.user.name}",
+            topic=f"{self.panel_type.capitalize()} ticket for {interaction.user}",
             overwrites={
                 interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
                 interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
@@ -85,7 +76,7 @@ class TicketTypeView(discord.ui.View):
         # PANEL-SPECIFIC EMBEDS
         # --------------------------------------------------
 
-        if ticket_type == "verification":
+        if self.panel_type == "verification":
             embed = discord.Embed(
                 title="🎫 Verification Ticket",
                 description=(
@@ -107,7 +98,7 @@ class TicketTypeView(discord.ui.View):
                 color=discord.Color.blue()
             )
 
-        elif ticket_type == "reports":
+        elif self.panel_type == "reports":
             embed = discord.Embed(
                 title="⚠ Report Ticket",
                 description=(
@@ -125,7 +116,7 @@ class TicketTypeView(discord.ui.View):
                 color=discord.Color.red()
             )
 
-        elif ticket_type == "applications":
+        elif self.panel_type == "applications":
             embed = discord.Embed(
                 title="📝 Staff Application Ticket",
                 description=(
@@ -146,7 +137,7 @@ class TicketTypeView(discord.ui.View):
                 color=discord.Color.orange()
             )
 
-        elif ticket_type == "contact":
+        elif self.panel_type == "contact":
             embed = discord.Embed(
                 title="💌 Contact Staff Ticket",
                 description=(
@@ -160,12 +151,65 @@ class TicketTypeView(discord.ui.View):
                 color=discord.Color.purple()
             )
 
-        await channel.send(embed=embed, view=CloseTicketButton())
+        await ticket_channel.send(embed=embed, view=CloseTicketButton())
 
         await interaction.response.send_message(
-            f"✅ Your {ticket_type} ticket has been created: {channel.mention}",
+            f"✅ Your {self.panel_type} ticket has been created: {ticket_channel.mention}",
             ephemeral=True
         )
+
+
+# --------------------------------------------------
+# DROPDOWN SELECTOR FOR PANEL TYPE
+# --------------------------------------------------
+
+class PanelSelect(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="Verification", value="verification", emoji="🪪"),
+            discord.SelectOption(label="Reports", value="reports", emoji="⚠"),
+            discord.SelectOption(label="Applications", value="applications", emoji="📝"),
+            discord.SelectOption(label="Contact Staff", value="contact", emoji="💌"),
+        ]
+
+        super().__init__(
+            placeholder="Choose a ticket panel type...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        panel_type = self.values[0]
+
+        embed = discord.Embed(
+            title=f"🎫 {panel_type.capitalize()} Tickets",
+            description="Click the button below to open a ticket.",
+            color=discord.Color.green()
+        )
+
+        view = CreateTicketButton(panel_type)
+
+        msg = await interaction.channel.send(embed=embed, view=view)
+
+        # Save panel permanently
+        panels["panels"].append({
+            "channel_id": interaction.channel.id,
+            "message_id": msg.id,
+            "type": panel_type
+        })
+        save_panels(panels)
+
+        await interaction.response.send_message(
+            f"Panel created for **{panel_type}**.",
+            ephemeral=True
+        )
+
+
+class PanelSelectView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(PanelSelect())
 
 
 # --------------------------------------------------
@@ -176,30 +220,23 @@ class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="ticketpanel", description="Create a ticket panel with buttons.")
+    @app_commands.command(name="ticketpanel", description="Create a ticket panel with a dropdown selector.")
     async def ticketpanel(self, interaction: discord.Interaction):
 
         embed = discord.Embed(
             title="🎫 Pillow Palace Ticket Panel",
-            description="Choose the type of ticket you want to open:",
-            color=discord.Color.green()
+            description="Choose the type of ticket panel you want to create:",
+            color=discord.Color.blurple()
         )
 
-        view = TicketTypeView()
-
-        msg = await interaction.channel.send(embed=embed, view=view)
-
-        # Save panel permanently
-        panels["panels"].append({
-            "channel_id": interaction.channel.id,
-            "message_id": msg.id
-        })
-        save_panels(panels)
+        view = PanelSelectView()
 
         await interaction.response.send_message(
-            "Ticket panel created successfully.",
+            "Select a panel type below.",
             ephemeral=True
         )
+
+        await interaction.channel.send(embed=embed, view=view)
 
 
 async def setup(bot):
