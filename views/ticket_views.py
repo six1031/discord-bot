@@ -1,5 +1,10 @@
 import discord
 
+from database.tickets import (
+    create_ticket,
+    has_open_ticket,
+)
+
 STAFF_ROLE_ID = 1428444870766231622
 TICKET_CATEGORY_ID = 1526141859213086841
 
