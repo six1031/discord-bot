@@ -37,7 +37,6 @@ class Games(commands.Cog):
         setchannel: discord.TextChannel | None,
         toggle: bool | None
     ):
-    ):
         state = await self.get_data(interaction.guild)
 
         if setchannel is not None:
@@ -72,12 +71,6 @@ class Games(commands.Cog):
                 f"Counting game is now **{'enabled' if toggle else 'disabled'}**.",
                 ephemeral=True,
             )
-            return
-
-        await interaction.response.send_message(
-            "❌ You must specify at least one option.",
-            ephemeral=True,
-        )
     return
 
 await interaction.response.send_message(
