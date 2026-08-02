@@ -1,3 +1,7 @@
+import discord
+from discord.ext import commands
+from discord import app_commands
+
 from database.games import (
     get_game_state,
     save_counting,
