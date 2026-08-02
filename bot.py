@@ -2,6 +2,9 @@ import discord
 from discord.ext import commands
 import os
 import asyncio
+
+from database.database import db
+
 from views.ticket_views import (
     VerificationTicketView,
     ReportsTicketView,
@@ -10,7 +13,7 @@ from views.ticket_views import (
     CloseTicketView,
 )
 
-from database.database import db
+
 
 # --------------------------------------------------
 # BOT SETUP
