@@ -11,8 +11,9 @@ from database.games import (
 # --------------------------------------------------
 
 class Games(commands.Cog):
-    def __init__(self, bot):
-    self.bot = bot
+        def __init__(self, bot):
+        self.bot = bot
+    
     async def get_data(self, guild: discord.Guild):
     return await get_game_state(guild.id)
 
