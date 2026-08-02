@@ -1,35 +1,9 @@
-import discord
-from discord.ext import commands
-from discord import app_commands
-import json
-import os
-
-DATA_FILE = "game_data.json"
-
-# --------------------------------------------------
-# JSON LOAD / SAVE
-# --------------------------------------------------
-
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {
-            "counting_channel": None,
-            "counting_enabled": True,
-            "current_count": 0,
-            "last_counter": None,
-
-            "wordchain_channel": None,
-            "wordchain_enabled": True,
-            "last_word": "",
-            "used_words": [],
-            "word_last_counter": None
-        }
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
-
-def save_data(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+from database.games import (
+    get_game_state,
+    save_counting,
+    save_wordchain,
+    save_settings,
+)
 
 
 # --------------------------------------------------
@@ -38,8 +12,9 @@ def save_data(data):
 
 class Games(commands.Cog):
     def __init__(self, bot):
-        self.bot = bot
-        self.data = load_data()
+    self.bot = bot
+    async def get_data(self, guild: discord.Guild):
+    return await get_game_state(guild.id)
 
     # --------------------------------------------------
     # COUNTING COMMAND
