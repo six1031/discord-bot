@@ -7,6 +7,7 @@ from database.games import (
     save_counting,
     save_wordchain,
     save_settings,
+    save_game_state,
 )
 
 
@@ -36,28 +37,45 @@ class Games(commands.Cog):
         setchannel: discord.TextChannel | None,
         toggle: bool | None
     ):
-        if setchannel is not None:
-            self.data["counting_channel"] = setchannel.id
-            save_data(self.data)
-            await interaction.response.send_message(
-                f"📌 Counting channel set to <#{setchannel.id}>",
-                ephemeral=True
-            )
-            return
+        state = await self.get_data(interaction.guild)
 
-        if toggle is not None:
-            self.data["counting_enabled"] = toggle
-            save_data(self.data)
-            await interaction.response.send_message(
-                f"Counting game is now **{'enabled' if toggle else 'disabled'}**.",
-                ephemeral=True
-            )
-            return
+if setchannel is not None:
+    state["counting_channel"] = setchannel.id
+    await save_settings(
+        interaction.guild.id,
+        state["counting_channel"],
+        state["counting_enabled"],
+        state["wordchain_channel"],
+        state["wordchain_enabled"],
+    )
 
-        await interaction.response.send_message(
-            "❌ You must specify at least one option.",
-            ephemeral=True
-        )
+    await interaction.response.send_message(
+        f"📌 Counting channel set to <#{setchannel.id}>",
+        ephemeral=True,
+    )
+    return
+
+if toggle is not None:
+    state["counting_enabled"] = toggle
+
+    await save_settings(
+        interaction.guild.id,
+        state["counting_channel"],
+        state["counting_enabled"],
+        state["wordchain_channel"],
+        state["wordchain_enabled"],
+    )
+
+    await interaction.response.send_message(
+        f"Counting game is now **{'enabled' if toggle else 'disabled'}**.",
+        ephemeral=True,
+    )
+    return
+
+await interaction.response.send_message(
+    "❌ You must specify at least one option.",
+    ephemeral=True,
+)
 
     # --------------------------------------------------
     # WORDCHAIN COMMAND
@@ -74,27 +92,45 @@ class Games(commands.Cog):
         setchannel: discord.TextChannel | None,
         toggle: bool | None
     ):
+               state = await self.get_data(interaction.guild)
+
         if setchannel is not None:
-            self.data["wordchain_channel"] = setchannel.id
-            save_data(self.data)
+            state["wordchain_channel"] = setchannel.id
+
+            await save_settings(
+                interaction.guild.id,
+                state["counting_channel"],
+                state["counting_enabled"],
+                state["wordchain_channel"],
+                state["wordchain_enabled"],
+            )
+
             await interaction.response.send_message(
                 f"📌 Word-chain channel set to <#{setchannel.id}>",
-                ephemeral=True
+                ephemeral=True,
             )
             return
 
         if toggle is not None:
-            self.data["wordchain_enabled"] = toggle
-            save_data(self.data)
+            state["wordchain_enabled"] = toggle
+
+            await save_settings(
+                interaction.guild.id,
+                state["counting_channel"],
+                state["counting_enabled"],
+                state["wordchain_channel"],
+                state["wordchain_enabled"],
+            )
+
             await interaction.response.send_message(
                 f"Word-chain game is now **{'enabled' if toggle else 'disabled'}**.",
-                ephemeral=True
+                ephemeral=True,
             )
             return
 
         await interaction.response.send_message(
             "❌ You must specify at least one option.",
-            ephemeral=True
+            ephemeral=True,
         )
 
     # --------------------------------------------------
