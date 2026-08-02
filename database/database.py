@@ -1,321 +1,258 @@
-import discord
-from discord.ext import commands
-from discord import app_commands
-
-from utils.tree_image import generate_tree_image
-from database import db  # make sure this matches your actual import path
+import os
+import asyncpg
 
 
-# --------------------------------------------------
-# MAIN COG
-# --------------------------------------------------
-
-class Relationships(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
+class Database:
+    def __init__(self):
+        self.pool = None
 
     # --------------------------------------------------
-    # ADD RELATIONSHIP (NON-SPOUSE)
+    # CONNECTION
     # --------------------------------------------------
 
-    @app_commands.command(
-        name="addrelationship",
-        description="Add a relationship to your tree."
-    )
-    @app_commands.describe(
-        partner="The user you want to add",
-        rtype="spouse / caregiver / little / middle / sibling / handler / pet"
-    )
-    async def addrelationship(
+    async def connect(self):
+        if self.pool:
+            return
+
+        database_url = os.getenv("DATABASE_URL")
+
+        if not database_url:
+            raise RuntimeError("DATABASE_URL was not found.")
+
+        self.pool = await asyncpg.create_pool(database_url)
+
+        print("✅ Connected to PostgreSQL")
+
+        await self.create_tables()
+
+    async def close(self):
+        if self.pool:
+            await self.pool.close()
+            print("🔒 Database disconnected.")
+
+    # --------------------------------------------------
+    # TABLES
+    # --------------------------------------------------
+
+    async def create_tables(self):
+
+        async with self.pool.acquire() as conn:
+
+            await conn.execute("""
+
+            CREATE TABLE IF NOT EXISTS ticket_panels (
+
+                id SERIAL PRIMARY KEY,
+
+                guild_id BIGINT NOT NULL,
+                channel_id BIGINT NOT NULL,
+                message_id BIGINT NOT NULL,
+
+                panel_type TEXT NOT NULL
+
+            );
+
+            """)
+
+            await conn.execute("""
+
+            CREATE TABLE IF NOT EXISTS tickets (
+
+                id SERIAL PRIMARY KEY,
+
+                channel_id BIGINT NOT NULL,
+                owner_id BIGINT NOT NULL,
+
+                ticket_type TEXT NOT NULL,
+
+                status TEXT DEFAULT 'open',
+
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+            );
+
+            """)
+            await conn.execute("""
+
+            CREATE TABLE IF NOT EXISTS game_state (
+
+                guild_id BIGINT PRIMARY KEY,
+
+                counting_channel BIGINT,
+                counting_enabled BOOLEAN DEFAULT TRUE,
+                current_count INTEGER DEFAULT 0,
+                last_counter BIGINT,
+
+                wordchain_channel BIGINT,
+                wordchain_enabled BOOLEAN DEFAULT TRUE,
+                last_word TEXT DEFAULT '',
+                used_words TEXT[] DEFAULT '{}',
+                word_last_counter BIGINT
+
+            );
+
+            """)
+
+            await conn.execute("""
+
+            CREATE TABLE IF NOT EXISTS relationships (
+
+                id SERIAL PRIMARY KEY,
+
+                user_id BIGINT NOT NULL,
+                partner_id BIGINT NOT NULL,
+
+                relationship_type TEXT NOT NULL
+
+            );
+
+            """)
+
+            await conn.execute("""
+
+            CREATE TABLE IF NOT EXISTS marriages (
+
+                id SERIAL PRIMARY KEY,
+
+                user1_id BIGINT NOT NULL,
+                user2_id BIGINT NOT NULL,
+
+                married_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+            );
+
+            """)
+
+        print("✅ Database tables ready.")
+
+    # ==================================================
+    # TICKET PANEL FUNCTIONS
+    # ==================================================
+
+    async def add_ticket_panel(
         self,
-        interaction: discord.Interaction,
-        partner: discord.Member,
-        rtype: str
+        guild_id,
+        channel_id,
+        message_id,
+        panel_type
     ):
 
-        rtype = rtype.lower()
-        valid = ["spouse", "caregiver", "little", "middle", "sibling", "handler", "pet"]
+        async with self.pool.acquire() as conn:
 
-        if rtype not in valid:
-            return await interaction.response.send_message(
-                "❌ Invalid type. Use: spouse, caregiver, little, middle, sibling, handler, pet",
-                ephemeral=True
+            await conn.execute("""
+
+                INSERT INTO ticket_panels
+                (guild_id, channel_id, message_id, panel_type)
+
+                VALUES ($1,$2,$3,$4)
+
+            """,
+            guild_id,
+            channel_id,
+            message_id,
+            panel_type
             )
 
-        # For spouse, use /marry instead
-        if rtype == "spouse":
-            return await interaction.response.send_message(
-                "❌ Use `/marry` to add a spouse.",
-                ephemeral=True
-            )
+    async def get_ticket_panels(self):
 
-        async with db.pool.acquire() as conn:
-            await conn.execute(
-                """
-                INSERT INTO relationships (user_id, partner_id, relationship_type)
-                VALUES ($1, $2, $3)
-                """,
-                interaction.user.id,
-                partner.id,
-                rtype,
-            )
+        async with self.pool.acquire() as conn:
 
-        await interaction.response.send_message(
-            f"✅ Added **{rtype}**: {partner.display_name}",
-            ephemeral=True
-        )
+            rows = await conn.fetch("""
 
-    # --------------------------------------------------
-    # REMOVE RELATIONSHIP
-    # --------------------------------------------------
-
-    @app_commands.command(
-        name="removerelationship",
-        description="Remove a relationship from your tree."
-    )
-    async def removerelationship(
-        self,
-        interaction: discord.Interaction,
-        partner: discord.Member
-    ):
-
-        async with db.pool.acquire() as conn:
-            result = await conn.execute(
-                """
-                DELETE FROM relationships
-                WHERE user_id = $1 AND partner_id = $2
-                """,
-                interaction.user.id,
-                partner.id,
-            )
-
-        # result is like "DELETE 0" or "DELETE 1"
-        if result == "DELETE 0":
-            return await interaction.response.send_message(
-                "❌ That user was not in your tree.",
-                ephemeral=True
-            )
-
-        await interaction.response.send_message(
-            f"🗑 Removed {partner.display_name} from your tree.",
-            ephemeral=True
-        )
-
-    # --------------------------------------------------
-    # MARRY COMMAND (SIMPLE MUTUAL, ONE SPOUSE EACH)
-    # --------------------------------------------------
-
-    @app_commands.command(
-        name="marry",
-        description="Marry another user (one spouse each)."
-    )
-    @app_commands.describe(
-        partner="The user you want to marry"
-    )
-    async def marry(
-        self,
-        interaction: discord.Interaction,
-        partner: discord.Member
-    ):
-
-        if partner.id == interaction.user.id:
-            return await interaction.response.send_message(
-                "❌ You cannot marry yourself.",
-                ephemeral=True
-            )
-
-        if partner.bot:
-            return await interaction.response.send_message(
-                "❌ You cannot marry a bot.",
-                ephemeral=True
-            )
-
-        async with db.pool.acquire() as conn:
-            # Check if either user is already married
-            existing = await conn.fetchrow(
-                """
                 SELECT *
-                FROM marriages
-                WHERE (user1_id = $1 OR user2_id = $1)
-                   OR (user1_id = $2 OR user2_id = $2)
-                """,
-                interaction.user.id,
-                partner.id,
-            )
 
-            if existing:
-                return await interaction.response.send_message(
-                    "❌ One of you is already married.",
-                    ephemeral=True
-                )
+                FROM ticket_panels
 
-            # Create marriage row
-            await conn.execute(
-                """
-                INSERT INTO marriages (user1_id, user2_id)
-                VALUES ($1, $2)
-                """,
-                interaction.user.id,
-                partner.id,
-            )
+            """)
 
-            # Add spouse relationship for both users
-            await conn.execute(
-                """
-                INSERT INTO relationships (user_id, partner_id, relationship_type)
-                VALUES ($1, $2, 'spouse'),
-                       ($2, $1, 'spouse')
-                """,
-                interaction.user.id,
-                partner.id,
-            )
+            return rows
 
-        await interaction.response.send_message(
-            f"💍 {interaction.user.mention} is now married to {partner.mention}!",
-            ephemeral=False
-        )
-
-    # --------------------------------------------------
-    # DIVORCE COMMAND
-    # --------------------------------------------------
-
-    @app_commands.command(
-        name="divorce",
-        description="Divorce your current spouse."
-    )
-    async def divorce(
+    async def remove_ticket_panel(
         self,
-        interaction: discord.Interaction
+        message_id
     ):
 
-        async with db.pool.acquire() as conn:
-            marriage = await conn.fetchrow(
-                """
+        async with self.pool.acquire() as conn:
+
+            await conn.execute("""
+
+                DELETE FROM ticket_panels
+
+                WHERE message_id=$1
+
+            """,
+            message_id
+            )
+
+    # ==================================================
+    # TICKET FUNCTIONS
+    # ==================================================
+
+    async def create_ticket(
+        self,
+        channel_id,
+        owner_id,
+        ticket_type
+    ):
+
+        async with self.pool.acquire() as conn:
+
+            await conn.execute("""
+
+                INSERT INTO tickets
+                (channel_id, owner_id, ticket_type)
+
+                VALUES ($1,$2,$3)
+
+            """,
+            channel_id,
+            owner_id,
+            ticket_type
+            )
+
+    async def close_ticket(
+        self,
+        channel_id
+    ):
+
+        async with self.pool.acquire() as conn:
+
+            await conn.execute("""
+
+                UPDATE tickets
+
+                SET status='closed'
+
+                WHERE channel_id=$1
+
+            """,
+            channel_id
+            )
+
+    async def get_open_ticket(
+        self,
+        owner_id,
+        ticket_type
+    ):
+
+        async with self.pool.acquire() as conn:
+
+            return await conn.fetchrow("""
+
                 SELECT *
-                FROM marriages
-                WHERE user1_id = $1 OR user2_id = $1
-                """,
-                interaction.user.id,
+
+                FROM tickets
+
+                WHERE owner_id=$1
+
+                AND ticket_type=$2
+
+                AND status='open'
+
+            """,
+            owner_id,
+            ticket_type
             )
 
-            if not marriage:
-                return await interaction.response.send_message(
-                    "❌ You are not currently married.",
-                    ephemeral=True
-                )
 
-            user1 = marriage["user1_id"]
-            user2 = marriage["user2_id"]
-
-            # Delete marriage
-            await conn.execute(
-                """
-                DELETE FROM marriages
-                WHERE id = $1
-                """,
-                marriage["id"],
-            )
-
-            # Delete spouse relationships for both
-            await conn.execute(
-                """
-                DELETE FROM relationships
-                WHERE (user_id = $1 AND partner_id = $2 AND relationship_type = 'spouse')
-                   OR (user_id = $2 AND partner_id = $1 AND relationship_type = 'spouse')
-                """,
-                user1,
-                user2,
-            )
-
-        # Try to resolve partner for message
-        partner = interaction.guild.get_member(user2) if user1 == interaction.user.id else interaction.guild.get_member(user1)
-
-        if partner:
-            msg = f"💔 {interaction.user.mention} is now divorced from {partner.mention}."
-        else:
-            msg = "💔 Divorce complete."
-
-        await interaction.response.send_message(
-            msg,
-            ephemeral=False
-        )
-
-    # --------------------------------------------------
-    # TREE COMMAND (USES RELATIONSHIPS TABLE)
-    # --------------------------------------------------
-
-    @app_commands.command(
-        name="tree",
-        description="Generate your pastel family tree."
-    )
-    async def tree(
-        self,
-        interaction: discord.Interaction,
-        user: discord.Member = None
-    ):
-
-        await interaction.response.defer()
-
-        target = user or interaction.user
-
-        async with db.pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                SELECT partner_id, relationship_type
-                FROM relationships
-                WHERE user_id = $1
-                """,
-                target.id,
-            )
-
-        spouse = None
-        caregivers = []
-        littles = []
-        middles = []
-        siblings = []
-        handler = None
-        pets = []
-
-        for row in rows:
-            partner = interaction.guild.get_member(row["partner_id"])
-            if not partner:
-                continue
-
-            rtype = row["relationship_type"]
-
-            if rtype == "spouse":
-                spouse = partner.display_name
-            elif rtype == "caregiver":
-                caregivers.append(partner.display_name)
-            elif rtype == "little":
-                littles.append(partner.display_name)
-            elif rtype == "middle":
-                middles.append(partner.display_name)
-            elif rtype == "sibling":
-                siblings.append(partner.display_name)
-            elif rtype == "handler":
-                handler = partner.display_name
-            elif rtype == "pet":
-                pets.append(partner.display_name)
-
-        jpeg_bytes = generate_tree_image(
-            user_name=target.display_name,
-            spouse_name=spouse,
-            caregivers=caregivers,
-            littles=littles,
-            middles=middles,
-            siblings=siblings,
-            handler=handler,
-            pets=pets,
-        )
-
-        file = discord.File(jpeg_bytes, filename="family_tree.jpg")
-
-        await interaction.followup.send(
-            f"🌳 Cute pastel family tree for {target.mention}:",
-            file=file
-        )
-
-
-async def setup(bot):
-    await bot.add_cog(Relationships(bot))
+db = Database()
