@@ -57,6 +57,7 @@ async def load_cogs():
 async def main():
 
     await db.connect()
+    bot.db = db
 
     async with bot:
         await load_cogs()
