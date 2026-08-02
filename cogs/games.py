@@ -56,7 +56,6 @@ class Games(commands.Cog):
         setchannel: discord.TextChannel | None,
         toggle: bool | None
     ):
-        # Handle channel selection
         if setchannel is not None:
             self.data["counting_channel"] = setchannel.id
             save_data(self.data)
@@ -66,7 +65,6 @@ class Games(commands.Cog):
             )
             return
 
-        # Handle toggle
         if toggle is not None:
             self.data["counting_enabled"] = toggle
             save_data(self.data)
@@ -96,7 +94,6 @@ class Games(commands.Cog):
         setchannel: discord.TextChannel | None,
         toggle: bool | None
     ):
-        # Handle channel selection
         if setchannel is not None:
             self.data["wordchain_channel"] = setchannel.id
             save_data(self.data)
@@ -106,7 +103,6 @@ class Games(commands.Cog):
             )
             return
 
-        # Handle toggle
         if toggle is not None:
             self.data["wordchain_enabled"] = toggle
             save_data(self.data)
@@ -150,7 +146,6 @@ class Games(commands.Cog):
                 save_data(self.data)
                 return
 
-            # Prevent double-posting
             if message.author.id == self.data["last_counter"]:
                 await message.channel.send(
                     f"{message.author.mention} ❌ You cannot count twice in a row! Reset to 0."
@@ -160,7 +155,6 @@ class Games(commands.Cog):
                 save_data(self.data)
                 return
 
-            # Check correct number
             if number == self.data["current_count"] + 1:
                 self.data["current_count"] += 1
                 self.data["last_counter"] = message.author.id
@@ -186,7 +180,6 @@ class Games(commands.Cog):
 
             word = message.content.lower().strip()
 
-            # Prevent double-posting
             if message.author.id == self.data["word_last_counter"]:
                 await message.channel.send(
                     f"{message.author.mention} ❌ You cannot play twice in a row! Chain reset."
@@ -197,7 +190,6 @@ class Games(commands.Cog):
                 save_data(self.data)
                 return
 
-            # Prevent repeated words
             if word in self.data["used_words"]:
                 await message.channel.send(
                     f"{message.author.mention} ❌ That word was already used! Chain reset."
@@ -208,7 +200,6 @@ class Games(commands.Cog):
                 save_data(self.data)
                 return
 
-            # First word
             if self.data["last_word"] == "":
                 self.data["last_word"] = word
                 self.data["used_words"].append(word)
@@ -217,7 +208,6 @@ class Games(commands.Cog):
                 await message.add_reaction("🟦")
                 return
 
-            # Check last-letter rule
             if word[0] != self.data["last_word"][-1]:
                 await message.channel.send(
                     f"{message.author.mention} ❌ Wrong letter! "
@@ -229,7 +219,6 @@ class Games(commands.Cog):
                 save_data(self.data)
                 return
 
-            # Valid word
             self.data["last_word"] = word
             self.data["used_words"].append(word)
             self.data["word_last_counter"] = message.author.id
