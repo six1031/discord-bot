@@ -60,9 +60,11 @@ async def load_cogs():
 # --------------------------------------------------
 # STARTUP
 # --------------------------------------------------
-
 async def main():
     async with bot:
+
+        await db.connect()
+
         await load_cogs()
 
         bot.add_view(VerificationTicketView())
@@ -73,5 +75,4 @@ async def main():
 
         await bot.start(TOKEN)
 
-if __name__ == "__main__":
-    asyncio.run(main())
+    await db.close()
