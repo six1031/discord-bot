@@ -100,12 +100,29 @@ class BaseTicketView(discord.ui.View):
             colour=discord.Colour.blurple(),
         )
 
-        if self.ticket_type == "verification":
-            embed.description = (
-                "Welcome!\n\n"
-                "Please answer the verification questions and upload your ID "
-                "(cover everything except your photo and DOB)."
-            )
+       if self.ticket_type == "verification":
+    embed.description = (
+        "Hi there — thank you for opening a verification ticket with us.\n"
+        "To keep our community safe and comfy, we need you to answer a few questions and complete a quick age check.\n"
+        "You may cover everything on your ID except your date of birth and your photo.\n"
+        "Please answer all questions clearly so staff can verify you properly.\n\n"
+
+        "**Verification Questions:**\n"
+        "1. How old are you right now?\n"
+        "2. What brings you to our Little Space community?\n"
+        "3. Are you joining as a regressor, caregiver, or supporter?\n"
+        "4. Pick one server rule and explain it in your own words.\n"
+        "5. Tell us one way you keep yourself safe online.\n"
+        "6. What are your personal boundaries or things you’re not comfy with?\n"
+        "7. How do you prefer people to interact with you in the server?\n"
+        "8. Is there anything else staff should know about you?\n"
+        "9. In your own words, do you see age regression as NSFW or SFW?\n\n"
+
+        "**ID Requirement:**\n"
+        "Please upload a photo of your ID with everything covered except your date of birth and your photo.\n"
+        "This is only used for age verification and will never be shared outside staff."
+    )
+
 
         elif self.ticket_type == "reports":
             embed.description = (
