@@ -26,7 +26,12 @@ def draw_node(draw, x, y, text):
 
     # Text
     font = ImageFont.load_default()  # Railway-safe
-    tw, th = draw.textsize(text, font=font)
+
+    # FIXED: Pillow-safe text measurement
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+
     draw.text(
         (x + (w - tw) / 2, y + (h - th) / 2),
         text,
