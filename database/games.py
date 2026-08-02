@@ -104,7 +104,10 @@ async def save_wordchain(
 
 async def save_settings(
     guild_id: int,
-    data: dict,
+    counting_channel,
+    counting_enabled,
+    wordchain_channel,
+    wordchain_enabled,
 ):
 
     async with db.pool.acquire() as conn:
@@ -113,7 +116,8 @@ async def save_settings(
             """
             UPDATE game_state
 
-            SET counting_channel=$2,
+            SET
+                counting_channel=$2,
                 counting_enabled=$3,
                 wordchain_channel=$4,
                 wordchain_enabled=$5
@@ -121,8 +125,48 @@ async def save_settings(
             WHERE guild_id=$1
             """,
             guild_id,
-            data["counting_channel"],
-            data["counting_enabled"],
-            data["wordchain_channel"],
-            data["wordchain_enabled"],
+            counting_channel,
+            counting_enabled,
+            wordchain_channel,
+            wordchain_enabled,
+        )
+# --------------------------------------------------
+# SAVE COMPLETE STATE
+# --------------------------------------------------
+
+async def save_game_state(
+    guild_id: int,
+    state: dict,
+):
+
+    async with db.pool.acquire() as conn:
+
+        await conn.execute(
+            """
+            UPDATE game_state
+
+            SET
+                counting_channel=$2,
+                counting_enabled=$3,
+                current_count=$4,
+                last_counter=$5,
+
+                wordchain_channel=$6,
+                wordchain_enabled=$7,
+                last_word=$8,
+                used_words=$9,
+                word_last_counter=$10
+
+            WHERE guild_id=$1
+            """,
+            guild_id,
+            state["counting_channel"],
+            state["counting_enabled"],
+            state["current_count"],
+            state["last_counter"],
+            state["wordchain_channel"],
+            state["wordchain_enabled"],
+            state["last_word"],
+            state["used_words"],
+            state["word_last_counter"],
         )
