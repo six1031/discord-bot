@@ -4,9 +4,9 @@ from io import BytesIO
 WIDTH = 1600
 HEIGHT = 1200
 
-BG_COLOR = (10, 10, 10)          # black background
-GOLD = (212, 175, 55)            # gold accents
-NODE_BG = (20, 20, 20)           # dark node background
+BG_COLOR = (10, 10, 10)
+GOLD = (212, 175, 55)
+NODE_BG = (20, 20, 20)
 TEXT_COLOR = GOLD
 
 NODE_WIDTH = 260
@@ -31,9 +31,12 @@ def rounded_rect(draw, xy, radius, outline, fill, width=2):
 def draw_centered_text(draw, xy, text, font, fill):
     x1, y1, x2, y2 = xy
 
-    bbox = draw.textbbox((0, 0), text, font=font)
-    tw = bbox[2] - bbox[0]
-    th = bbox[3] - bbox[1]
+    try:
+        bbox = draw.textbbox((0, 0), text, font=font)
+        tw = bbox[2] - bbox[0]
+        th = bbox[3] - bbox[1]
+    except AttributeError:
+        tw, th = draw.textsize(text, font=font)
 
     draw.text(
         ((x1 + x2 - tw) / 2, (y1 + y2 - th) / 2),
@@ -94,89 +97,46 @@ def generate_tree_image(
 
     nodes = []
 
-    # YOU
     nodes.append(Node(f"YOU: {user_name}", (WIDTH // 2, HEIGHT // 2)))
 
-    # SPOUSE
     if spouse_name:
-        nodes.append(
-            Node(
-                f"Spouse: {spouse_name}",
-                (WIDTH // 2 + 380, HEIGHT // 2),
-            )
-        )
+        nodes.append(Node(f"Spouse: {spouse_name}", (WIDTH // 2 + 380, HEIGHT // 2)))
 
-    # CAREGIVERS
     cy = HEIGHT // 2 - 220
     offset = 220
-    for i, name in enumerate(caregivers):
-        nodes.append(
-            Node(
-                f"Caregiver: {name}",
-                (WIDTH // 2 + (i * offset) - offset, cy),
-            )
-        )
 
-    # SIBLINGS
+    for i, name in enumerate(caregivers):
+        nodes.append(Node(f"Caregiver: {name}", (WIDTH // 2 + (i * offset) - offset, cy)))
+
     base_x = WIDTH // 2 - 380
     base_y = HEIGHT // 2 - 40
     spacing = 110
 
     for i, name in enumerate(siblings):
-        nodes.append(
-            Node(
-                f"Sibling: {name}",
-                (base_x, base_y + (i * spacing)),
-            )
-        )
+        nodes.append(Node(f"Sibling: {name}", (base_x, base_y + (i * spacing))))
 
-    # HANDLER
     if handler:
         hy = base_y + spacing * len(siblings)
-
-        nodes.append(
-            Node(
-                f"Handler: {handler}",
-                (base_x, hy),
-            )
-        )
+        nodes.append(Node(f"Handler: {handler}", (base_x, hy)))
 
         for i, name in enumerate(pets):
-            nodes.append(
-                Node(
-                    f"Pet: {name}",
-                    (base_x, hy + ((i + 1) * spacing)),
-                )
-            )
+            nodes.append(Node(f"Pet: {name}", (base_x, hy + ((i + 1) * spacing))))
 
-    # LITTLES
     little_y = HEIGHT // 2 + 150
 
     for i, name in enumerate(littles):
-        nodes.append(
-            Node(
-                f"Little: {name}",
-                (WIDTH // 2 + (i * 200) - 150, little_y),
-            )
-        )
+        nodes.append(Node(f"Little: {name}", (WIDTH // 2 + (i * 200) - 150, little_y)))
 
-    # MIDDLES
     middle_y = little_y + 120
 
     for i, name in enumerate(middles):
-        nodes.append(
-            Node(
-                f"Middle: {name}",
-                (WIDTH // 2 + (i * 200) - 150, middle_y),
-            )
-        )
+        nodes.append(Node(f"Middle: {name}", (WIDTH // 2 + (i * 200) - 150, middle_y)))
 
-    # Draw every node
     for node in nodes:
         node.draw(draw, font)
 
-    # Return image as bytes
     buffer = BytesIO()
     img.save(buffer, format="JPEG")
     buffer.seek(0)
+
     return buffer
