@@ -2,6 +2,13 @@ import discord
 from discord.ext import commands
 import os
 import asyncio
+from views.ticket_views import (
+    VerificationTicketView,
+    ReportsTicketView,
+    ApplicationsTicketView,
+    ContactTicketView,
+    CloseTicketView,
+)
 
 from database.database import db
 
@@ -55,16 +62,16 @@ async def load_cogs():
 # --------------------------------------------------
 
 async def main():
-
-    await db.connect()
-    bot.db = db
-
     async with bot:
         await load_cogs()
+
+        bot.add_view(VerificationTicketView())
+        bot.add_view(ReportsTicketView())
+        bot.add_view(ApplicationsTicketView())
+        bot.add_view(ContactTicketView())
+        bot.add_view(CloseTicketView())
+
         await bot.start(TOKEN)
-
-    await db.close()
-
 
 if __name__ == "__main__":
     asyncio.run(main())
