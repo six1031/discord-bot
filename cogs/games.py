@@ -11,16 +11,16 @@ from database.games import (
 # --------------------------------------------------
 
 class Games(commands.Cog):
-        def __init__(self, bot):
+
+    def __init__(self, bot):
         self.bot = bot
-    
+
     async def get_data(self, guild: discord.Guild):
-    return await get_game_state(guild.id)
+        return await get_game_state(guild.id)
 
     # --------------------------------------------------
     # COUNTING COMMAND
     # --------------------------------------------------
-
     @app_commands.command(name="counting", description="Configure the counting game")
     @app_commands.describe(
         setchannel="Select the counting channel",
