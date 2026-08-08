@@ -16,15 +16,12 @@ NODE_PADDING_Y = 40
 
 
 def auto_font(label, base_size):
-    """Safe font loader that works on Railway."""
+    """Safe font loader that NEVER crashes on Railway."""
     length = len(label)
     size = max(28, base_size - int(length * 0.8))
 
-    # Railway ALWAYS has DejaVuSans.ttf
-    try:
-        return ImageFont.truetype("DejaVuSans.ttf", size)
-    except:
-        return ImageFont.load_default()
+    # Use Pillow's built-in font (always available)
+    return ImageFont.load_default()
 
 
 def measure_text(draw, text, font):
