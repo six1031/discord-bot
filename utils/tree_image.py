@@ -17,10 +17,7 @@ NODE_PADDING_Y = 40
 
 def auto_font(label, base_size):
     """Safe font loader that NEVER crashes on Railway."""
-    length = len(label)
-    size = max(28, base_size - int(length * 0.8))
-
-    # Use Pillow's built-in font (always available)
+    # We use Pillow's built-in font only.
     return ImageFont.load_default()
 
 
