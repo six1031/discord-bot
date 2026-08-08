@@ -34,7 +34,11 @@ class MarriageProposalView(discord.ui.View):
         else:
             await interaction.message.edit(view=self)
 
-    @discord.ui.button(label="✅ Accept", style=discord.ButtonStyle.success)
+    @discord.ui.button(
+        label="✅ Accept",
+        style=discord.ButtonStyle.success,
+        custom_id="marriage_accept",
+    )
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         if interaction.user.id != self.partner_id:
@@ -67,7 +71,11 @@ class MarriageProposalView(discord.ui.View):
             new_content=f"💍 {proposer.mention} is now married to {partner.mention}!",
         )
 
-    @discord.ui.button(label="❌ Decline", style=discord.ButtonStyle.danger)
+    @discord.ui.button(
+        label="❌ Decline",
+        style=discord.ButtonStyle.danger,
+        custom_id="marriage_decline",
+    )
     async def decline(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         if interaction.user.id != self.partner_id:
@@ -112,21 +120,33 @@ class Relationships(commands.Cog):
     # ADD RELATIONSHIP
     # --------------------------------------------------
 
-    @app_commands.command(name="addrelationship", description="Add a relationship to your tree.")
-    async def addrelationship(self, interaction: discord.Interaction, partner: discord.Member, rtype: str):
+    @app_commands.command(
+        name="addrelationship",
+        description="Add a relationship to your tree."
+    )
+    @app_commands.describe(
+        partner="The user you want to add",
+        rtype="spouse / caregiver / little / middle / sibling / handler / pet"
+    )
+    async def addrelationship(
+        self,
+        interaction: discord.Interaction,
+        partner: discord.Member,
+        rtype: str
+    ):
 
         rtype = rtype.lower()
         valid = ["spouse", "caregiver", "little", "middle", "sibling", "handler", "pet"]
 
         if rtype not in valid:
             return await interaction.response.send_message(
-                "❌ Invalid type.",
+                "❌ Invalid type. Use: spouse, caregiver, little, middle, sibling, handler, pet",
                 ephemeral=True
             )
 
         if rtype == "spouse":
             return await interaction.response.send_message(
-                "❌ Use `/marry` to add a spouse.",
+                "❌ Use `/marry` to add a spouse via proposal.",
                 ephemeral=True
             )
 
@@ -141,8 +161,15 @@ class Relationships(commands.Cog):
     # REMOVE RELATIONSHIP
     # --------------------------------------------------
 
-    @app_commands.command(name="removerelationship", description="Remove a relationship.")
-    async def removerelationship(self, interaction: discord.Interaction, partner: discord.Member):
+    @app_commands.command(
+        name="removerelationship",
+        description="Remove a relationship from your tree."
+    )
+    async def removerelationship(
+        self,
+        interaction: discord.Interaction,
+        partner: discord.Member
+    ):
 
         result = await remove_relationship(interaction.user.id, partner.id)
 
@@ -153,7 +180,7 @@ class Relationships(commands.Cog):
             )
 
         await interaction.response.send_message(
-            f"🗑 Removed {partner.display_name}.",
+            f"🗑 Removed {partner.display_name} from your tree.",
             ephemeral=True
         )
 
@@ -161,41 +188,76 @@ class Relationships(commands.Cog):
     # MARRY COMMAND
     # --------------------------------------------------
 
-    @app_commands.command(name="marry", description="Propose marriage.")
-    async def marry(self, interaction: discord.Interaction, partner: discord.Member):
+    @app_commands.command(
+        name="marry",
+        description="Propose marriage to another user."
+    )
+    @app_commands.describe(
+        partner="The user you want to marry"
+    )
+    async def marry(
+        self,
+        interaction: discord.Interaction,
+        partner: discord.Member
+    ):
 
         if partner.id == interaction.user.id:
-            return await interaction.response.send_message("❌ You cannot marry yourself.", ephemeral=True)
+            return await interaction.response.send_message(
+                "❌ You cannot marry yourself.",
+                ephemeral=True
+            )
 
         if partner.bot:
-            return await interaction.response.send_message("❌ You cannot marry a bot.", ephemeral=True)
+            return await interaction.response.send_message(
+                "❌ You cannot marry a bot.",
+                ephemeral=True
+            )
 
         if await is_married(interaction.user.id):
-            return await interaction.response.send_message("❌ You are already married.", ephemeral=True)
+            return await interaction.response.send_message(
+                "❌ You are already married.",
+                ephemeral=True
+            )
 
         if await is_married(partner.id):
-            return await interaction.response.send_message("❌ That user is already married.", ephemeral=True)
+            return await interaction.response.send_message(
+                "❌ That user is already married.",
+                ephemeral=True
+            )
 
-        view = MarriageProposalView(interaction.user.id, partner.id)
+        view = MarriageProposalView(
+            proposer_id=interaction.user.id,
+            partner_id=partner.id,
+        )
 
         await interaction.response.send_message(
-            f"💍 {interaction.user.mention} wants to marry {partner.mention}!",
+            f"💍 {interaction.user.mention} wants to marry {partner.mention}!\n"
+            f"{partner.mention}, do you accept?",
             view=view,
         )
 
         view.message = await interaction.original_response()
 
     # --------------------------------------------------
-    # DIVORCE
+    # DIVORCE COMMAND
     # --------------------------------------------------
 
-    @app_commands.command(name="divorce", description="Divorce your spouse.")
-    async def divorce(self, interaction: discord.Interaction):
+    @app_commands.command(
+        name="divorce",
+        description="Divorce your current spouse."
+    )
+    async def divorce(
+        self,
+        interaction: discord.Interaction
+    ):
 
         marriage = await get_marriage(interaction.user.id)
 
         if not marriage:
-            return await interaction.response.send_message("❌ You are not married.", ephemeral=True)
+            return await interaction.response.send_message(
+                "❌ You are not currently married.",
+                ephemeral=True
+            )
 
         user1 = marriage["user1_id"]
         user2 = marriage["user2_id"]
@@ -207,24 +269,40 @@ class Relationships(commands.Cog):
         partner_id = user2 if user1 == interaction.user.id else user1
         partner = interaction.guild.get_member(partner_id)
 
-        msg = f"💔 {interaction.user.mention} is now divorced from {partner.mention}." if partner else "💔 Divorce complete."
+        if partner:
+            msg = f"💔 {interaction.user.mention} is now divorced from {partner.mention}."
+        else:
+            msg = "💔 Divorce complete."
 
-        await interaction.response.send_message(msg)
+        await interaction.response.send_message(
+            msg,
+            ephemeral=False
+        )
 
     # --------------------------------------------------
     # TREE COMMAND
     # --------------------------------------------------
 
-    @app_commands.command(name="tree", description="Generate your pastel family tree.")
-    async def tree(self, interaction: discord.Interaction, user: discord.Member = None):
+    @app_commands.command(
+        name="tree",
+        description="Generate your pastel family tree."
+    )
+    async def tree(
+        self,
+        interaction: discord.Interaction,
+        user: discord.Member = None
+    ):
 
         await interaction.response.defer(thinking=True)
 
         target = user or interaction.user
 
         rows = await get_relationships(target.id)
+
         if not rows:
-            return await interaction.edit_original_response(content="❌ You have no relationships yet.")
+            return await interaction.edit_original_response(
+                content="❌ You have no relationships yet."
+            )
 
         spouse = None
         caregivers = []
@@ -235,8 +313,11 @@ class Relationships(commands.Cog):
         pets = []
 
         for row in rows:
-            partner_id = row.get("partner_id")
-            rtype = row.get("relationship_type")
+            try:
+                partner_id = row.get("partner_id")
+                rtype = row.get("relationship_type")
+            except:
+                continue
 
             if not partner_id or not rtype:
                 continue
