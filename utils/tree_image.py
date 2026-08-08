@@ -114,42 +114,39 @@ def generate_tree_image(
         nodes.append(("Middle: " + name, "middle"))
 
     # --------------------------------------------------
-    # DYNAMIC CANVAS SIZE
+    # DYNAMIC CANVAS SIZE / AUTO ZOOM
     # --------------------------------------------------
 
-  # --------------------------------------------------
-# DYNAMIC CANVAS SIZE / AUTO ZOOM
-# --------------------------------------------------
+    total_nodes = len(nodes)
 
-total_nodes = len(nodes)
+    row_counts = {}
 
-# Find the largest row of people.
-row_counts = {}
+    for label, group in nodes:
+        row_counts[group] = row_counts.get(group, 0) + 1
 
-for label, group in nodes:
-    row_counts[group] = row_counts.get(group, 0) + 1
-
-max_people_in_row = max(row_counts.values(), default=1)
-active_rows = len(row_counts)
-
-# Smaller trees get a smaller canvas.
-# Larger trees get more room automatically.
-
-width = max(
-    1400,
-    min(
-        2400,
-        900 + (max_people_in_row * 320)
+    max_people_in_row = max(
+        row_counts.values(),
+        default=1
     )
-)
 
-height = max(
-    1000,
-    min(
-        1600,
-        700 + (active_rows * 120)
+    active_rows = len(row_counts)
+
+    width = max(
+        1400,
+        min(
+            2400,
+            900 + (max_people_in_row * 320)
+        )
     )
-)
+
+    height = max(
+        1000,
+        min(
+            1600,
+            700 + (active_rows * 120)
+        )
+    )
+
     # --------------------------------------------------
     # LOAD BACKGROUND
     # --------------------------------------------------
@@ -224,64 +221,62 @@ height = max(
         y = int(y_positions[group])
 
         # Keep names closer together.
-    # This prevents the huge gaps caused by
-    # spreading them across the entire canvas.
-
-    max_spacing = min(
-        360,
-        width // max(len(labels), 2)
-    )
-
-    min_spacing = 180
-
-    if len(labels) == 1:
-
-        positions = [
-            width // 2
-        ]
-
-    else:
-
-        available_width = min(
-            width - 300,
-            max_spacing * (len(labels) - 1)
+        max_spacing = min(
+            360,
+            width // max(len(labels), 2)
         )
 
-        spacing = max(
-            min_spacing,
-            available_width // (len(labels) - 1)
-        )
+        min_spacing = 180
 
-        total_width = (
-            spacing * (len(labels) - 1)
-        )
+        if len(labels) == 1:
 
-        start_x = (
-            width - total_width
-        ) // 2
+            positions = [
+                width // 2
+            ]
 
-        positions = [
-            start_x + (i * spacing)
-            for i in range(len(labels))
-        ]
+        else:
 
-    for x, label in zip(
-        positions,
-        labels
-    ):
+            available_width = min(
+                width - 300,
+                max_spacing * (len(labels) - 1)
+            )
 
-        font = auto_font(
-            label,
-            BASE_FONT_SIZE
-        )
+            spacing = max(
+                min_spacing,
+                available_width // (len(labels) - 1)
+            )
 
-        draw_node(
-            draw,
-            x,
-            y,
-            label,
-            font
-        )
+            total_width = (
+                spacing * (len(labels) - 1)
+            )
+
+            start_x = (
+                width - total_width
+            ) // 2
+
+            positions = [
+                start_x + (i * spacing)
+                for i in range(len(labels))
+            ]
+
+        for x, label in zip(
+            positions,
+            labels
+        ):
+
+            font = auto_font(
+                label,
+                BASE_FONT_SIZE
+            )
+
+            draw_node(
+                draw,
+                x,
+                y,
+                label,
+                font
+            )
+
     # --------------------------------------------------
     # SAVE IMAGE
     # --------------------------------------------------
