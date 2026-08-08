@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 
 from utils.tree_image import generate_tree_image
+from utils.debug import debug_log, debug_exception
 from database.relationships import (
     add_relationship,
     remove_relationship,
