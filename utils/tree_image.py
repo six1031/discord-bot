@@ -117,11 +117,39 @@ def generate_tree_image(
     # DYNAMIC CANVAS SIZE
     # --------------------------------------------------
 
-    total_nodes = len(nodes)
+  # --------------------------------------------------
+# DYNAMIC CANVAS SIZE / AUTO ZOOM
+# --------------------------------------------------
 
-    width = BASE_WIDTH + (total_nodes * 120)
-    height = BASE_HEIGHT + (total_nodes * 80)
+total_nodes = len(nodes)
 
+# Find the largest row of people.
+row_counts = {}
+
+for label, group in nodes:
+    row_counts[group] = row_counts.get(group, 0) + 1
+
+max_people_in_row = max(row_counts.values(), default=1)
+active_rows = len(row_counts)
+
+# Smaller trees get a smaller canvas.
+# Larger trees get more room automatically.
+
+width = max(
+    1400,
+    min(
+        2400,
+        900 + (max_people_in_row * 320)
+    )
+)
+
+height = max(
+    1000,
+    min(
+        1600,
+        700 + (active_rows * 120)
+    )
+)
     # --------------------------------------------------
     # LOAD BACKGROUND
     # --------------------------------------------------
