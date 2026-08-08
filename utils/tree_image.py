@@ -5,7 +5,6 @@ from io import BytesIO
 BASE_WIDTH = 2400
 BASE_HEIGHT = 1600
 
-BG_COLOR = (10, 10, 10)
 GOLD = (212, 175, 55)
 NODE_BG = (20, 20, 20)
 TEXT_COLOR = GOLD
@@ -15,11 +14,9 @@ BASE_FONT_SIZE = 48
 
 NODE_PADDING_X = 60
 NODE_PADDING_Y = 40
-ROW_SPACING = 180
 
 
 def auto_font(label, base_size):
-    """Scale font size based on text length."""
     length = len(label)
     size = max(28, base_size - int(length * 0.8))
     try:
@@ -29,15 +26,12 @@ def auto_font(label, base_size):
 
 
 def measure_text(draw, text, font):
-    """Measure text width/height."""
     bbox = draw.textbbox((0, 0), text, font=font)
     return bbox[2] - bbox[0], bbox[3] - bbox[1]
 
 
 def draw_node(draw, x, y, text, font):
-    """Draw a centered node box with dynamic size."""
     tw, th = measure_text(draw, text, font)
-
     node_w = tw + NODE_PADDING_X
     node_h = th + NODE_PADDING_Y
 
@@ -54,12 +48,7 @@ def draw_node(draw, x, y, text, font):
         width=4,
     )
 
-    draw.text(
-        (x - tw / 2, y - th / 2),
-        text,
-        font=font,
-        fill=TEXT_COLOR,
-    )
+    draw.text((x - tw / 2, y - th / 2), text, font=font, fill=TEXT_COLOR)
 
 
 def generate_tree_image(
@@ -109,18 +98,18 @@ def generate_tree_image(
     img = background.copy()
     draw = ImageDraw.Draw(img)
 
-    # Soft dark overlay to make nodes pop
+    # Soft dark overlay
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 60))
     img = Image.alpha_composite(img.convert("RGBA"), overlay)
     draw = ImageDraw.Draw(img)
 
     # Layout rows
     rows = {
-        "center": [],
         "care": [],
         "sib": [],
         "handler": [],
         "pet": [],
+        "center": [],
         "little": [],
         "middle": [],
     }
@@ -128,7 +117,7 @@ def generate_tree_image(
     for label, group in nodes:
         rows[group].append(label)
 
-    # Draw rows top → bottom
+    # Dynamic Y positions
     y_positions = {
         "care": height * 0.20,
         "sib": height * 0.35,
@@ -139,13 +128,12 @@ def generate_tree_image(
         "middle": height * 0.75,
     }
 
+    # Draw nodes
     for group, labels in rows.items():
         if not labels:
             continue
 
         y = int(y_positions[group])
-
-        # Spread nodes evenly across width
         spacing = width // (len(labels) + 1)
 
         for i, label in enumerate(labels):
@@ -153,7 +141,6 @@ def generate_tree_image(
             font = auto_font(label, BASE_FONT_SIZE)
             draw_node(draw, x, y, label, font)
 
-    # Output
     buffer = BytesIO()
     img.save(buffer, format="JPEG", quality=95)
     buffer.seek(0)
