@@ -139,14 +139,15 @@ def generate_tree_image(
 
     buffer = BytesIO()
 
-# JPEG does not support RGBA
-img = img.convert("RGB")
+    # JPEG does not support RGBA,
+    # so convert the final composited image back to RGB.
+    img = img.convert("RGB")
 
-img.save(
-    buffer,
-    format="JPEG",
-    quality=95
-)
+    img.save(
+        buffer,
+        format="JPEG",
+        quality=95
+    )
 
-buffer.seek(0)
-return buffer
+    buffer.seek(0)
+    return buffer
