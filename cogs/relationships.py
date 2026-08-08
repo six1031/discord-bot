@@ -293,72 +293,204 @@ class Relationships(commands.Cog):
         interaction: discord.Interaction,
         user: discord.Member = None
     ):
+        await debug_log(
+            self.bot,
+            "🌳 `/tree` command started.",
+            "INFO"
+        )
 
-        await interaction.response.defer(thinking=True)
+        try:
+            # ------------------------------------------
+            # DEFER DISCORD INTERACTION
+            # ------------------------------------------
 
-        target = user or interaction.user
+            await interaction.response.defer(thinking=True)
 
-        rows = await get_relationships(target.id)
-
-        if not rows:
-            return await interaction.edit_original_response(
-                content="❌ You have no relationships yet."
+            await debug_log(
+                self.bot,
+                "✅ Interaction deferred successfully.",
+                "SUCCESS"
             )
 
-        spouse = None
-        caregivers = []
-        littles = []
-        middles = []
-        siblings = []
-        handler = None
-        pets = []
+            # ------------------------------------------
+            # TARGET USER
+            # ------------------------------------------
 
-        for row in rows:
-            try:
+            target = user or interaction.user
+
+            await debug_log(
+                self.bot,
+                f"🔍 Building tree for **{target.display_name}** (`{target.id}`).",
+                "DEBUG"
+            )
+
+            # ------------------------------------------
+            # DATABASE
+            # ------------------------------------------
+
+            await debug_log(
+                self.bot,
+                "🔄 Getting relationships from PostgreSQL...",
+                "DEBUG"
+            )
+
+            rows = await get_relationships(target.id)
+
+            await debug_log(
+                self.bot,
+                f"✅ Database returned **{len(rows)}** relationships.",
+                "SUCCESS"
+            )
+
+            if not rows:
+                await debug_log(
+                    self.bot,
+                    "⚠️ User has no relationships.",
+                    "WARNING"
+                )
+
+                return await interaction.edit_original_response(
+                    content="❌ You have no relationships yet."
+                )
+
+            # ------------------------------------------
+            # BUILD RELATIONSHIP LISTS
+            # ------------------------------------------
+
+            await debug_log(
+                self.bot,
+                "🔄 Processing relationships...",
+                "DEBUG"
+            )
+
+            spouse = None
+            caregivers = []
+            littles = []
+            middles = []
+            siblings = []
+            handler = None
+            pets = []
+
+            for row in rows:
+
                 partner_id = row.get("partner_id")
                 rtype = row.get("relationship_type")
-            except:
-                continue
 
-            if not partner_id or not rtype:
-                continue
+                if not partner_id or not rtype:
+                    continue
 
-            partner = interaction.guild.get_member(partner_id)
-            if not partner:
-                continue
+                partner = interaction.guild.get_member(partner_id)
 
-            if rtype == "spouse":
-                spouse = partner.display_name
-            elif rtype == "caregiver":
-                caregivers.append(partner.display_name)
-            elif rtype == "little":
-                littles.append(partner.display_name)
-            elif rtype == "middle":
-                middles.append(partner.display_name)
-            elif rtype == "sibling":
-                siblings.append(partner.display_name)
-            elif rtype == "handler":
-                handler = partner.display_name
-            elif rtype == "pet":
-                pets.append(partner.display_name)
+                if not partner:
+                    continue
 
-        jpeg_bytes = generate_tree_image(
-            user_name=target.display_name,
-            spouse_name=spouse,
-            caregivers=caregivers,
-            littles=littles,
-            middles=middles,
-            siblings=siblings,
-            handler=handler,
-            pets=pets,
-        )
+                if rtype == "spouse":
+                    spouse = partner.display_name
 
-        file = discord.File(jpeg_bytes, filename="family_tree.jpg")
+                elif rtype == "caregiver":
+                    caregivers.append(partner.display_name)
 
-        await interaction.edit_original_response(
-            content=f"🌳 Cute pastel family tree for {target.mention}:",
-            attachments=[file]
-        )
+                elif rtype == "little":
+                    littles.append(partner.display_name)
+
+                elif rtype == "middle":
+                    middles.append(partner.display_name)
+
+                elif rtype == "sibling":
+                    siblings.append(partner.display_name)
+
+                elif rtype == "handler":
+                    handler = partner.display_name
+
+                elif rtype == "pet":
+                    pets.append(partner.display_name)
+
+            await debug_log(
+                self.bot,
+                (
+                    f"✅ Relationships processed.\n"
+                    f"Spouse: {spouse}\n"
+                    f"Caregivers: {len(caregivers)}\n"
+                    f"Littles: {len(littles)}\n"
+                    f"Middles: {len(middles)}\n"
+                    f"Siblings: {len(siblings)}\n"
+                    f"Handler: {handler}\n"
+                    f"Pets: {len(pets)}"
+                ),
+                "SUCCESS"
+            )
+
+            # ------------------------------------------
+            # GENERATE IMAGE
+            # ------------------------------------------
+
+            await debug_log(
+                self.bot,
+                "🖼️ Starting tree image generation...",
+                "DEBUG"
+            )
+
+            jpeg_bytes = generate_tree_image(
+                user_name=target.display_name,
+                spouse_name=spouse,
+                caregivers=caregivers,
+                littles=littles,
+                middles=middles,
+                siblings=siblings,
+                handler=handler,
+                pets=pets,
+            )
+
+            await debug_log(
+                self.bot,
+                "✅ Tree image generated successfully.",
+                "SUCCESS"
+            )
+
+            # ------------------------------------------
+            # SEND IMAGE
+            # ------------------------------------------
+
+            await debug_log(
+                self.bot,
+                "📤 Uploading tree image to Discord...",
+                "DEBUG"
+            )
+
+            file = discord.File(
+                jpeg_bytes,
+                filename="family_tree.jpg"
+            )
+
+            await interaction.edit_original_response(
+                content=f"🌳 Cute pastel family tree for {target.mention}:",
+                attachments=[file]
+            )
+
+            await debug_log(
+                self.bot,
+                "✅ `/tree` completed successfully.",
+                "SUCCESS"
+            )
+
+        except Exception as e:
+
+            await debug_exception(
+                self.bot,
+                "🌳 `/tree` CRASHED",
+                e
+            )
+
+            try:
+                await interaction.edit_original_response(
+                    content=(
+                        "❌ Something went wrong while generating "
+                        "the family tree. The error has been sent "
+                        "to the bot debug channel."
+                    )
+                )
+            except Exception:
+                pass
 
 
 async def setup(bot):
