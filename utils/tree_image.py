@@ -130,10 +130,35 @@ def generate_tree_image(
             continue
 
         y = int(y_positions[group])
-        spacing = width // (len(labels) + 1)
+        # Keep names closer together while still spreading
+# them evenly across the row.
+max_spacing = 420
+min_spacing = 220
 
-        for i, label in enumerate(labels):
-            x = spacing * (i + 1)
+if len(labels) == 1:
+    positions = [width // 2]
+else:
+    available_width = min(
+        width - 300,
+        max_spacing * (len(labels) - 1)
+    )
+
+    spacing = max(
+        min_spacing,
+        available_width // (len(labels) - 1)
+    )
+
+    total_width = spacing * (len(labels) - 1)
+    start_x = (width - total_width) // 2
+
+    positions = [
+        start_x + (i * spacing)
+        for i in range(len(labels))
+    ]
+
+for x, label in zip(positions, labels):
+    font = auto_font(label, BASE_FONT_SIZE)
+    draw_node(draw, x, y, label, font)
             font = auto_font(label, BASE_FONT_SIZE)
             draw_node(draw, x, y, label, font)
 
