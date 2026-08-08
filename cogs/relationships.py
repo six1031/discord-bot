@@ -293,6 +293,7 @@ class Relationships(commands.Cog):
         interaction: discord.Interaction,
         user: discord.Member = None
     ):
+
         await debug_log(
             self.bot,
             "🌳 `/tree` command started.",
@@ -300,6 +301,7 @@ class Relationships(commands.Cog):
         )
 
         try:
+
             # ------------------------------------------
             # DEFER DISCORD INTERACTION
             # ------------------------------------------
@@ -343,6 +345,7 @@ class Relationships(commands.Cog):
             )
 
             if not rows:
+
                 await debug_log(
                     self.bot,
                     "⚠️ User has no relationships.",
@@ -473,7 +476,7 @@ class Relationships(commands.Cog):
                 "SUCCESS"
             )
 
-            except Exception as e:
+        except Exception as e:
 
             await debug_exception(
                 self.bot,
@@ -482,6 +485,7 @@ class Relationships(commands.Cog):
             )
 
             try:
+
                 await interaction.edit_original_response(
                     content=(
                         "❌ Something went wrong while generating "
@@ -489,6 +493,7 @@ class Relationships(commands.Cog):
                         "to the bot debug channel."
                     )
                 )
+
             except Exception:
                 pass
 
