@@ -138,6 +138,15 @@ def generate_tree_image(
             draw_node(draw, x, y, label, font)
 
     buffer = BytesIO()
-    img.save(buffer, format="JPEG", quality=95)
-    buffer.seek(0)
-    return buffer
+
+# JPEG does not support RGBA
+img = img.convert("RGB")
+
+img.save(
+    buffer,
+    format="JPEG",
+    quality=95
+)
+
+buffer.seek(0)
+return buffer
