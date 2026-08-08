@@ -1,80 +1,65 @@
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 
-WIDTH = 1600
-HEIGHT = 1200
+# Base HD resolution (will expand dynamically)
+BASE_WIDTH = 2400
+BASE_HEIGHT = 1600
 
 BG_COLOR = (10, 10, 10)
 GOLD = (212, 175, 55)
 NODE_BG = (20, 20, 20)
 TEXT_COLOR = GOLD
 
-NODE_WIDTH = 260
-NODE_HEIGHT = 70
-NODE_RADIUS = 20
-LINE_WIDTH = 4
-
 FONT_PATH = "arial.ttf"
-FONT_SIZE = 28
+BASE_FONT_SIZE = 48
+
+NODE_PADDING_X = 60
+NODE_PADDING_Y = 40
+ROW_SPACING = 180
 
 
-def rounded_rect(draw, xy, radius, outline, fill, width=2):
-    draw.rounded_rectangle(
-        xy,
-        radius=radius,
-        outline=outline,
-        fill=fill,
-        width=width
-    )
-
-
-def draw_centered_text(draw, xy, text, font, fill):
-    x1, y1, x2, y2 = xy
-
+def auto_font(label, base_size):
+    """Scale font size based on text length."""
+    length = len(label)
+    size = max(28, base_size - int(length * 0.8))
     try:
-        bbox = draw.textbbox((0, 0), text, font=font)
-        tw = bbox[2] - bbox[0]
-        th = bbox[3] - bbox[1]
-    except AttributeError:
-        tw, th = draw.textsize(text, font=font)
+        return ImageFont.truetype(FONT_PATH, size)
+    except:
+        return ImageFont.load_default()
+
+
+def measure_text(draw, text, font):
+    """Measure text width/height."""
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+
+def draw_node(draw, x, y, text, font):
+    """Draw a centered node box with dynamic size."""
+    tw, th = measure_text(draw, text, font)
+
+    node_w = tw + NODE_PADDING_X
+    node_h = th + NODE_PADDING_Y
+
+    x1 = x - node_w // 2
+    y1 = y - node_h // 2
+    x2 = x + node_w // 2
+    y2 = y + node_h // 2
+
+    draw.rounded_rectangle(
+        (x1, y1, x2, y2),
+        radius=25,
+        outline=GOLD,
+        fill=NODE_BG,
+        width=4,
+    )
 
     draw.text(
-        ((x1 + x2 - tw) / 2, (y1 + y2 - th) / 2),
+        (x - tw / 2, y - th / 2),
         text,
         font=font,
-        fill=fill,
+        fill=TEXT_COLOR,
     )
-
-
-class Node:
-    def __init__(self, label, center):
-        self.label = label
-        self.cx, self.cy = center
-
-    @property
-    def rect(self):
-        x1 = self.cx - NODE_WIDTH // 2
-        y1 = self.cy - NODE_HEIGHT // 2
-        x2 = self.cx + NODE_WIDTH // 2
-        y2 = self.cy + NODE_HEIGHT // 2
-        return (x1, y1, x2, y2)
-
-    def draw(self, draw, font):
-        rounded_rect(
-            draw,
-            self.rect,
-            NODE_RADIUS,
-            outline=GOLD,
-            fill=NODE_BG,
-            width=LINE_WIDTH,
-        )
-        draw_centered_text(
-            draw,
-            self.rect,
-            self.label,
-            font,
-            TEXT_COLOR,
-        )
 
 
 def generate_tree_image(
@@ -87,56 +72,89 @@ def generate_tree_image(
     handler,
     pets,
 ):
-    img = Image.new("RGB", (WIDTH, HEIGHT), BG_COLOR)
-    draw = ImageDraw.Draw(img)
-
-    try:
-        font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
-    except Exception:
-        font = ImageFont.load_default()
-
+    # Build node list
     nodes = []
 
-    nodes.append(Node(f"YOU: {user_name}", (WIDTH // 2, HEIGHT // 2)))
+    nodes.append(("YOU: " + user_name, "center"))
 
     if spouse_name:
-        nodes.append(Node(f"Spouse: {spouse_name}", (WIDTH // 2 + 380, HEIGHT // 2)))
+        nodes.append(("Spouse: " + spouse_name, "center"))
 
-    cy = HEIGHT // 2 - 220
-    offset = 220
+    for name in caregivers:
+        nodes.append(("Caregiver: " + name, "care"))
 
-    for i, name in enumerate(caregivers):
-        nodes.append(Node(f"Caregiver: {name}", (WIDTH // 2 + (i * offset) - offset, cy)))
-
-    base_x = WIDTH // 2 - 380
-    base_y = HEIGHT // 2 - 40
-    spacing = 110
-
-    for i, name in enumerate(siblings):
-        nodes.append(Node(f"Sibling: {name}", (base_x, base_y + (i * spacing))))
+    for name in siblings:
+        nodes.append(("Sibling: " + name, "sib"))
 
     if handler:
-        hy = base_y + spacing * len(siblings)
-        nodes.append(Node(f"Handler: {handler}", (base_x, hy)))
+        nodes.append(("Handler: " + handler, "handler"))
 
-        for i, name in enumerate(pets):
-            nodes.append(Node(f"Pet: {name}", (base_x, hy + ((i + 1) * spacing))))
+    for name in pets:
+        nodes.append(("Pet: " + name, "pet"))
 
-    little_y = HEIGHT // 2 + 150
+    for name in littles:
+        nodes.append(("Little: " + name, "little"))
 
-    for i, name in enumerate(littles):
-        nodes.append(Node(f"Little: {name}", (WIDTH // 2 + (i * 200) - 150, little_y)))
+    for name in middles:
+        nodes.append(("Middle: " + name, "middle"))
 
-    middle_y = little_y + 120
+    # Dynamic canvas size
+    total_nodes = len(nodes)
+    width = BASE_WIDTH + (total_nodes * 120)
+    height = BASE_HEIGHT + (total_nodes * 80)
 
-    for i, name in enumerate(middles):
-        nodes.append(Node(f"Middle: {name}", (WIDTH // 2 + (i * 200) - 150, middle_y)))
+    # Load teddy bear cloud background
+    background = Image.open("utils/tree_bg.jpg").convert("RGB")
+    background = background.resize((width, height))
+    img = background.copy()
+    draw = ImageDraw.Draw(img)
 
-    for node in nodes:
-        node.draw(draw, font)
+    # Soft dark overlay to make nodes pop
+    overlay = Image.new("RGBA", (width, height), (0, 0, 0, 60))
+    img = Image.alpha_composite(img.convert("RGBA"), overlay)
+    draw = ImageDraw.Draw(img)
 
+    # Layout rows
+    rows = {
+        "center": [],
+        "care": [],
+        "sib": [],
+        "handler": [],
+        "pet": [],
+        "little": [],
+        "middle": [],
+    }
+
+    for label, group in nodes:
+        rows[group].append(label)
+
+    # Draw rows top → bottom
+    y_positions = {
+        "care": height * 0.20,
+        "sib": height * 0.35,
+        "handler": height * 0.45,
+        "pet": height * 0.55,
+        "center": height * 0.50,
+        "little": height * 0.65,
+        "middle": height * 0.75,
+    }
+
+    for group, labels in rows.items():
+        if not labels:
+            continue
+
+        y = int(y_positions[group])
+
+        # Spread nodes evenly across width
+        spacing = width // (len(labels) + 1)
+
+        for i, label in enumerate(labels):
+            x = spacing * (i + 1)
+            font = auto_font(label, BASE_FONT_SIZE)
+            draw_node(draw, x, y, label, font)
+
+    # Output
     buffer = BytesIO()
-    img.save(buffer, format="JPEG")
+    img.save(buffer, format="JPEG", quality=95)
     buffer.seek(0)
-
     return buffer
