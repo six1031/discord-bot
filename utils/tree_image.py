@@ -24,8 +24,12 @@ NODE_PADDING_Y = 40
 # --------------------------------------------------
 
 def auto_font(label, base_size):
-    """Safe font loader that never crashes on Railway."""
-    return ImageFont.load_default()
+    """Use a readable built-in Pillow font."""
+
+    try:
+        return ImageFont.load_default(size=base_size)
+    except TypeError:
+        return ImageFont.load_default()
 
 
 # --------------------------------------------------
@@ -221,12 +225,8 @@ def generate_tree_image(
         y = int(y_positions[group])
 
         # Keep names closer together.
-        max_spacing = min(
-            360,
-            width // max(len(labels), 2)
-        )
-
-        min_spacing = 180
+       max_spacing = 260
+       min_spacing = 140
 
         if len(labels) == 1:
 
