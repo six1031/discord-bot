@@ -159,8 +159,8 @@ else:
 for x, label in zip(positions, labels):
     font = auto_font(label, BASE_FONT_SIZE)
     draw_node(draw, x, y, label, font)
-            font = auto_font(label, BASE_FONT_SIZE)
-            draw_node(draw, x, y, label, font)
+    font = auto_font(label, BASE_FONT_SIZE)
+    draw_node(draw, x, y, label, font)
 
     buffer = BytesIO()
 
@@ -169,9 +169,9 @@ for x, label in zip(positions, labels):
     img = img.convert("RGB")
 
     img.save(
-        buffer,
-        format="JPEG",
-        quality=95
+    buffer,
+    format="JPEG",
+    quality=95
     )
 
     buffer.seek(0)
