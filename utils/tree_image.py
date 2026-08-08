@@ -224,61 +224,64 @@ height = max(
         y = int(y_positions[group])
 
         # Keep names closer together.
-        # This prevents the huge gaps caused by
-        # spreading them across the entire canvas.
+    # This prevents the huge gaps caused by
+    # spreading them across the entire canvas.
 
-        max_spacing = 420
-        min_spacing = 220
+    max_spacing = min(
+        360,
+        width // max(len(labels), 2)
+    )
 
-        if len(labels) == 1:
+    min_spacing = 180
 
-            positions = [
-                width // 2
-            ]
+    if len(labels) == 1:
 
-        else:
+        positions = [
+            width // 2
+        ]
 
-            available_width = min(
-                width - 300,
-                max_spacing * (len(labels) - 1)
-            )
+    else:
 
-            spacing = max(
-                min_spacing,
-                available_width // (len(labels) - 1)
-            )
+        available_width = min(
+            width - 300,
+            max_spacing * (len(labels) - 1)
+        )
 
-            total_width = (
-                spacing * (len(labels) - 1)
-            )
+        spacing = max(
+            min_spacing,
+            available_width // (len(labels) - 1)
+        )
 
-            start_x = (
-                width - total_width
-            ) // 2
+        total_width = (
+            spacing * (len(labels) - 1)
+        )
 
-            positions = [
-                start_x + (i * spacing)
-                for i in range(len(labels))
-            ]
+        start_x = (
+            width - total_width
+        ) // 2
 
-        for x, label in zip(
-            positions,
-            labels
-        ):
+        positions = [
+            start_x + (i * spacing)
+            for i in range(len(labels))
+        ]
 
-            font = auto_font(
-                label,
-                BASE_FONT_SIZE
-            )
+    for x, label in zip(
+        positions,
+        labels
+    ):
 
-            draw_node(
-                draw,
-                x,
-                y,
-                label,
-                font
-            )
+        font = auto_font(
+            label,
+            BASE_FONT_SIZE
+        )
 
+        draw_node(
+            draw,
+            x,
+            y,
+            label,
+            font
+        )
     # --------------------------------------------------
     # SAVE IMAGE
     # --------------------------------------------------
