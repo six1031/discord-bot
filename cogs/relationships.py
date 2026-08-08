@@ -473,7 +473,7 @@ class Relationships(commands.Cog):
                 "SUCCESS"
             )
 
-        except Exception as e:
+               except Exception as e:
 
             await debug_exception(
                 self.bot,
