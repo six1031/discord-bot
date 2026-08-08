@@ -175,4 +175,4 @@ for x, label in zip(positions, labels):
     )
 
     buffer.seek(0)
-    return buffer
+return buffer
