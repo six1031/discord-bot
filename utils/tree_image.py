@@ -9,7 +9,6 @@ GOLD = (212, 175, 55)
 NODE_BG = (20, 20, 20)
 TEXT_COLOR = GOLD
 
-FONT_PATH = "arial.ttf"
 BASE_FONT_SIZE = 48
 
 NODE_PADDING_X = 60
@@ -17,10 +16,13 @@ NODE_PADDING_Y = 40
 
 
 def auto_font(label, base_size):
+    """Safe font loader that works on Railway."""
     length = len(label)
     size = max(28, base_size - int(length * 0.8))
+
+    # Railway ALWAYS has DejaVuSans.ttf
     try:
-        return ImageFont.truetype(FONT_PATH, size)
+        return ImageFont.truetype("DejaVuSans.ttf", size)
     except:
         return ImageFont.load_default()
 
