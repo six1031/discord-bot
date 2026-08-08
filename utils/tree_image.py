@@ -1,7 +1,11 @@
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 
-# Base HD resolution (will expand dynamically)
+
+# --------------------------------------------------
+# BASE SETTINGS
+# --------------------------------------------------
+
 BASE_WIDTH = 2400
 BASE_HEIGHT = 1600
 
@@ -15,19 +19,32 @@ NODE_PADDING_X = 60
 NODE_PADDING_Y = 40
 
 
+# --------------------------------------------------
+# FONT
+# --------------------------------------------------
+
 def auto_font(label, base_size):
-    """Safe font loader that NEVER crashes on Railway."""
-    # We use Pillow's built-in font only.
+    """Safe font loader that never crashes on Railway."""
     return ImageFont.load_default()
 
+
+# --------------------------------------------------
+# TEXT MEASUREMENT
+# --------------------------------------------------
 
 def measure_text(draw, text, font):
     bbox = draw.textbbox((0, 0), text, font=font)
     return bbox[2] - bbox[0], bbox[3] - bbox[1]
 
 
+# --------------------------------------------------
+# DRAW NODE
+# --------------------------------------------------
+
 def draw_node(draw, x, y, text, font):
+
     tw, th = measure_text(draw, text, font)
+
     node_w = tw + NODE_PADDING_X
     node_h = th + NODE_PADDING_Y
 
@@ -44,8 +61,17 @@ def draw_node(draw, x, y, text, font):
         width=4,
     )
 
-    draw.text((x - tw / 2, y - th / 2), text, font=font, fill=TEXT_COLOR)
+    draw.text(
+        (x - tw / 2, y - th / 2),
+        text,
+        font=font,
+        fill=TEXT_COLOR
+    )
 
+
+# --------------------------------------------------
+# GENERATE TREE IMAGE
+# --------------------------------------------------
 
 def generate_tree_image(
     user_name,
@@ -57,7 +83,11 @@ def generate_tree_image(
     handler,
     pets,
 ):
-    # Build node list
+
+    # --------------------------------------------------
+    # BUILD NODE LIST
+    # --------------------------------------------------
+
     nodes = []
 
     nodes.append(("YOU: " + user_name, "center"))
@@ -83,23 +113,50 @@ def generate_tree_image(
     for name in middles:
         nodes.append(("Middle: " + name, "middle"))
 
-    # Dynamic canvas size
+    # --------------------------------------------------
+    # DYNAMIC CANVAS SIZE
+    # --------------------------------------------------
+
     total_nodes = len(nodes)
+
     width = BASE_WIDTH + (total_nodes * 120)
     height = BASE_HEIGHT + (total_nodes * 80)
 
-    # Load teddy bear cloud background
-    background = Image.open("utils/tree_bg.jpg").convert("RGB")
-    background = background.resize((width, height))
+    # --------------------------------------------------
+    # LOAD BACKGROUND
+    # --------------------------------------------------
+
+    background = Image.open(
+        "utils/tree_bg.jpg"
+    ).convert("RGB")
+
+    background = background.resize(
+        (width, height)
+    )
+
     img = background.copy()
+
+    # --------------------------------------------------
+    # DARK OVERLAY
+    # --------------------------------------------------
+
+    overlay = Image.new(
+        "RGBA",
+        (width, height),
+        (0, 0, 0, 60)
+    )
+
+    img = Image.alpha_composite(
+        img.convert("RGBA"),
+        overlay
+    )
+
     draw = ImageDraw.Draw(img)
 
-    # Soft dark overlay
-    overlay = Image.new("RGBA", (width, height), (0, 0, 0, 60))
-    img = Image.alpha_composite(img.convert("RGBA"), overlay)
-    draw = ImageDraw.Draw(img)
+    # --------------------------------------------------
+    # LAYOUT ROWS
+    # --------------------------------------------------
 
-    # Layout rows
     rows = {
         "care": [],
         "sib": [],
@@ -113,7 +170,10 @@ def generate_tree_image(
     for label, group in nodes:
         rows[group].append(label)
 
-    # Dynamic Y positions
+    # --------------------------------------------------
+    # Y POSITIONS
+    # --------------------------------------------------
+
     y_positions = {
         "care": height * 0.20,
         "sib": height * 0.35,
@@ -124,55 +184,90 @@ def generate_tree_image(
         "middle": height * 0.75,
     }
 
-    # Draw nodes
+    # --------------------------------------------------
+    # DRAW NODES
+    # --------------------------------------------------
+
     for group, labels in rows.items():
+
         if not labels:
             continue
 
         y = int(y_positions[group])
-        # Keep names closer together while still spreading
-# them evenly across the row.
-max_spacing = 420
-min_spacing = 220
 
-if len(labels) == 1:
-    positions = [width // 2]
-else:
-    available_width = min(
-        width - 300,
-        max_spacing * (len(labels) - 1)
-    )
+        # Keep names closer together.
+        # This prevents the huge gaps caused by
+        # spreading them across the entire canvas.
 
-    spacing = max(
-        min_spacing,
-        available_width // (len(labels) - 1)
-    )
+        max_spacing = 420
+        min_spacing = 220
 
-    total_width = spacing * (len(labels) - 1)
-    start_x = (width - total_width) // 2
+        if len(labels) == 1:
 
-    positions = [
-        start_x + (i * spacing)
-        for i in range(len(labels))
-    ]
+            positions = [
+                width // 2
+            ]
 
-for x, label in zip(positions, labels):
-    font = auto_font(label, BASE_FONT_SIZE)
-    draw_node(draw, x, y, label, font)
-    font = auto_font(label, BASE_FONT_SIZE)
-    draw_node(draw, x, y, label, font)
+        else:
+
+            available_width = min(
+                width - 300,
+                max_spacing * (len(labels) - 1)
+            )
+
+            spacing = max(
+                min_spacing,
+                available_width // (len(labels) - 1)
+            )
+
+            total_width = (
+                spacing * (len(labels) - 1)
+            )
+
+            start_x = (
+                width - total_width
+            ) // 2
+
+            positions = [
+                start_x + (i * spacing)
+                for i in range(len(labels))
+            ]
+
+        for x, label in zip(
+            positions,
+            labels
+        ):
+
+            font = auto_font(
+                label,
+                BASE_FONT_SIZE
+            )
+
+            draw_node(
+                draw,
+                x,
+                y,
+                label,
+                font
+            )
+
+    # --------------------------------------------------
+    # SAVE IMAGE
+    # --------------------------------------------------
 
     buffer = BytesIO()
 
-    # JPEG does not support RGBA,
-    # so convert the final composited image back to RGB.
+    # JPEG does not support RGBA.
+    # Convert the final image back to RGB.
+
     img = img.convert("RGB")
 
     img.save(
-    buffer,
-    format="JPEG",
-    quality=95
+        buffer,
+        format="JPEG",
+        quality=95
     )
 
     buffer.seek(0)
-return buffer
+
+    return buffer
